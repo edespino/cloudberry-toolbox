@@ -70,6 +70,10 @@ func Execute() {
 // init initializes the root command by defining global flags and configurations.
 // Subcommands such as `sysinfo` are added to the root command during this phase.
 func init() {
+
+    // Initialize shared flags
+    initSharedFlags()
+
     // Example of a global persistent flag:
     // rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cbtoolbox.yaml)")
     rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

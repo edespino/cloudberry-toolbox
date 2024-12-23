@@ -73,7 +73,6 @@ type PostgresInfo struct {
 }
 
 var (
-	formatFlag  string
 	outputDir   string
 	maxCores    int
 	compareFlag bool

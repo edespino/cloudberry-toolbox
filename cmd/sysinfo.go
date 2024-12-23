@@ -57,9 +57,6 @@ import (
 // procMeminfo defines the path to the system's memory information file.
 var procMeminfo = "/proc/meminfo"
 
-// formatFlag defines the output format (yaml or json) for system information display.
-var formatFlag string
-
 // SysInfo contains system and environment information collected by the sysinfo command.
 type SysInfo struct {
     // OS is the operating system name.
@@ -340,15 +337,6 @@ func gatherGPHOMEInfo() (string, []string, string, string, []error) {
     }
 
     return gphome, pgConfig, postgresVersion, gpVersion, errs
-}
-
-// validateFormat checks if the provided format is either "json" or "yaml".
-// Returns an error if the format is invalid.
-func validateFormat(format string) error {
-	if format != "json" && format != "yaml" {
-		return fmt.Errorf("invalid format: %s. Valid options are 'json' or 'yaml'", format)
-	}
-	return nil
 }
 
 // RunSysInfo gathers and displays system and database information.
