@@ -282,25 +282,29 @@ func printRegisters(analysis CoreAnalysis) {
     fmt.Println("Register State")
     fmt.Println("-------------")
     w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
+    
+    // Group registers logically
     generalPurpose := []string{"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp"}
     extended := []string{"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"}
     special := []string{"rip", "eflags", "cs", "ss", "ds", "es", "fs", "gs"}
-
+    
+    // Print general purpose registers
     for _, reg := range generalPurpose {
         if val, ok := analysis.Registers[reg]; ok {
             fmt.Fprintf(w, "%s:\t%s\n", reg, val)
         }
     }
     fmt.Fprintln(w)
-
+    
+    // Print extended registers
     for _, reg := range extended {
         if val, ok := analysis.Registers[reg]; ok {
             fmt.Fprintf(w, "%s:\t%s\n", reg, val)
         }
     }
     fmt.Fprintln(w)
-
+    
+    // Print special registers
     for _, reg := range special {
         if val, ok := analysis.Registers[reg]; ok {
             fmt.Fprintf(w, "%s:\t%s\n", reg, val)
@@ -315,18 +319,22 @@ func printRegisters(analysis CoreAnalysis) {
 func printLibrarySummary(analysis CoreAnalysis) {
     fmt.Println("Shared Library Summary")
     fmt.Println("---------------------")
-
+    
+    // Group libraries by type
     typeGroups := make(map[string][]LibraryInfo)
     for _, lib := range analysis.Libraries {
         typeGroups[lib.Type] = append(typeGroups[lib.Type], lib)
     }
-
+    
+    // Print CloudBerry libraries first
     printLibraryGroup("CloudBerry Core", typeGroups["Core"])
     printLibraryGroup("CloudBerry Extensions", typeGroups["Extension"])
-
+    
+    // Print other important groups
     printLibraryGroup("Security Libraries", typeGroups["Security"])
     printLibraryGroup("Runtime Libraries", typeGroups["Runtime"])
-
+    
+    // Print summary counts
     fmt.Println("\nLibrary Statistics:")
     for libType, libs := range typeGroups {
         fmt.Printf("  %s: %d libraries\n", libType, len(libs))
@@ -341,7 +349,7 @@ func printLibraryGroup(title string, libs []LibraryInfo) {
     if len(libs) == 0 {
         return
     }
-
+    
     fmt.Printf("\n%s:\n", title)
     for _, lib := range libs {
         fmt.Printf("  %s", filepath.Base(lib.Name))
