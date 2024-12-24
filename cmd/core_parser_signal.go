@@ -128,6 +128,15 @@ func enhanceSignalInfo(info *SignalInfo, analysis *CoreAnalysis) {
 		info.SignalNumber = 11 // SIGSEGV
 		info.SignalName = "SIGSEGV"
 		info.SignalDescription = "Segmentation fault"
+		// Look for fault context
+		for _, thread := range analysis.Threads {
+		    if !thread.IsCrashed {
+			if functionName := findKeyFunction(thread.Backtrace); functionName != "" {
+			    info.SignalDescription = fmt.Sprintf("Segmentation fault while in %s", functionName)
+			    break
+			}
+		    }
+		}
 	    case strings.Contains(frame.Function, "AbortHandler"):
 		info.SignalNumber = 6 // SIGABRT
 		info.SignalName = "SIGABRT"
@@ -139,18 +148,11 @@ func enhanceSignalInfo(info *SignalInfo, analysis *CoreAnalysis) {
     // Add context about where crash occurred
     for _, thread := range analysis.Threads {
 	if thread.IsCrashed {
-	    if keyFunc := findKeyFunction(thread.Backtrace); keyFunc != "" {
-		if !strings.Contains(info.SignalDescription, keyFunc) {
-		    info.SignalDescription += fmt.Sprintf(" in %s", keyFunc)
-		}
-	    }
-	    break
+	    continue  // Skip crashed thread as it's in signal handler
 	}
-    }
-
-    // Add fault address context if available
-    if info.FaultAddress != "" {
-	addFaultAddressContext(info, analysis)
+	if keyFunc := findKeyFunction(thread.Backtrace); keyFunc != "" {
+	    info.SignalDescription += fmt.Sprintf(" (active thread: %s)", keyFunc)
+	}
     }
 
     // Add CloudBerry-specific context

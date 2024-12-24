@@ -144,9 +144,17 @@ func determineThreadRole(backtrace []StackFrame) string {
 	case containsAny(backtrace[0].Function, []string{"exec", "dispatch"}):
 	    return "Query Dispatcher"
 	case containsAny(backtrace[0].Function, []string{"poll", "epoll"}):
+	    // Check for specific poll usage
+	    if len(backtrace) > 1 {
+		if strings.Contains(backtrace[1].Function, "rxThreadFunc") {
+		    return "Interconnect RX"
+		} else if strings.Contains(backtrace[1].Function, "txThreadFunc") {
+		    return "Interconnect TX"
+		}
+	    }
 	    return "Network Poller"
 	case strings.Contains(backtrace[0].Function, "StandardHandlerForSigillSigsegvSigbus"):
-	    return "Crashed Thread"
+	    return "Signal Handler"
 	}
     }
 
