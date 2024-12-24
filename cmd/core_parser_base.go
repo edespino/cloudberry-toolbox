@@ -172,3 +172,24 @@ func isSystemFunction(funcName string) bool {
 
     return false
 }
+
+// parseCallStack extracts a clean call stack from backtrace
+func parseCallStack(backtrace []StackFrame) []string {
+    var stack []string
+    for _, frame := range backtrace {
+	if frame.Function != "??" {
+	    stack = append(stack, frame.Function)
+	}
+    }
+    return stack
+}
+
+// containsAny checks if any of the strings in needles is in haystack
+func containsAny(haystack string, needles []string) bool {
+    for _, needle := range needles {
+	if strings.Contains(haystack, needle) {
+	    return true
+	}
+    }
+    return false
+}
