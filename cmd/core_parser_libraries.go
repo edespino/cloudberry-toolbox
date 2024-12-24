@@ -19,6 +19,7 @@
 package cmd
 
 import (
+    "fmt"
     "regexp"
     "strings"
     "path/filepath"
@@ -225,8 +226,8 @@ func getLibrarySummary(libraries []LibraryInfo) string {
 		": " +
 		strings.Repeat(".", 20) +
 		" " +
-		strings.Repeat(" ", 3-len(string(count))) +
-		string(count) + "\n",
+		strings.Repeat(" ", 3-len(fmt.Sprint(count))) +
+		fmt.Sprint(count) + "\n",
 	    )
 	}
     }
