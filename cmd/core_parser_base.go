@@ -5,6 +5,8 @@ package cmd
 import (
     "strconv"
     "strings"
+    "regexp"
+    "path/filepath"
 )
 
 // parseInt safely converts string to int
@@ -24,6 +26,68 @@ func parseLocals(localsStr string) map[string]string {
 	}
     }
     return locals
+}
+
+// parseRegisters extracts register information from GDB output
+func parseRegisters(output string) map[string]string {
+    registers := make(map[string]string)
+    for _, line := range strings.Split(output, "\n") {
+	// Use strings functions instead of regexp for better performance
+	if strings.HasPrefix(line, "r") || strings.HasPrefix(line, "e") {
+	    parts := strings.Fields(line)
+	    if len(parts) >= 2 {
+		registers[parts[0]] = strings.Join(parts[1:], " ")
+	    }
+	}
+    }
+    return registers
+}
+
+// parseStackTrace extracts stack trace information from GDB output
+func parseStackTrace(output string) []StackFrame {
+    var frames []StackFrame
+    stackRE := regexp.MustCompile(`#(\d+)\s+([^in]+)in\s+(\S+)\s*\(([^)]*)\)`)
+
+    inStackTrace := false
+    for _, line := range strings.Split(output, "\n") {
+	// Look for the start of a stack trace
+	if strings.HasPrefix(line, "Thread") {
+	    inStackTrace = true
+	    continue
+	}
+
+	// Process frames while in a stack trace
+	if inStackTrace && strings.HasPrefix(line, "#") {
+	    if matches := stackRE.FindStringSubmatch(line); matches != nil {
+		frame := StackFrame{
+		    FrameNum:  matches[1],
+		    Location:  strings.TrimSpace(matches[2]),
+		    Function:  matches[3],
+		    Arguments: matches[4],
+		}
+
+		// Try to get source file and line number
+		if srcMatch := regexp.MustCompile(`at ([^:]+):(\d+)`).FindStringSubmatch(line); srcMatch != nil {
+		    frame.SourceFile = srcMatch[1]
+		    frame.LineNumber, _ = strconv.Atoi(srcMatch[2])
+		}
+
+		// Try to get module name
+		if modMatch := regexp.MustCompile(`from ([^)]+)`).FindStringSubmatch(line); modMatch != nil {
+		    frame.Module = filepath.Base(modMatch[1])
+		}
+
+		frames = append(frames, frame)
+	    }
+	}
+
+	// End of stack trace
+	if inStackTrace && line == "" {
+	    inStackTrace = false
+	}
+    }
+
+    return frames
 }
 
 // getVisibleFrames extracts function names from a thread's backtrace text
@@ -73,38 +137,6 @@ func findKeyFunction(backtrace []StackFrame) string {
     return ""
 }
 
-// extractAddress safely extracts and standardizes hex addresses
-func extractAddress(addr string) string {
-    if strings.HasPrefix(addr, "0x") {
-	return addr
-    }
-    if addr == "" {
-	return "0x0"
-    }
-    return "0x" + strings.TrimLeft(addr, "0")
-}
-
-// containsAny checks if any of the strings in needles is in haystack
-func containsAny(haystack string, needles []string) bool {
-    for _, needle := range needles {
-	if strings.Contains(haystack, needle) {
-	    return true
-	}
-    }
-    return false
-}
-
-// parseCallStack extracts a clean call stack from backtrace
-func parseCallStack(backtrace []StackFrame) []string {
-    var stack []string
-    for _, frame := range backtrace {
-	if frame.Function != "??" {
-	    stack = append(stack, frame.Function)
-	}
-    }
-    return stack
-}
-
 // isSystemFunction determines if a function is a low-level system function
 func isSystemFunction(funcName string) bool {
     systemPrefixes := []string{
@@ -139,21 +171,4 @@ func isSystemFunction(funcName string) bool {
     }
 
     return false
-}
-
-// parseRegisters extracts register information from GDB output
-func parseRegisters(output string) map[string]string {
-    registers := make(map[string]string)
-    regPattern := `^([re][a-z][a-z]|r\d+|[cdefgs]s|[re]ip|[re]flags)\s+(.+)`
-
-    for _, line := range strings.Split(output, "\n") {
-	// Use strings functions instead of regexp for better performance
-	if strings.HasPrefix(line, "r") || strings.HasPrefix(line, "e") {
-	    parts := strings.Fields(line)
-	    if len(parts) >= 2 {
-		registers[parts[0]] = strings.Join(parts[1:], " ")
-	    }
-	}
-    }
-    return registers
 }

@@ -149,24 +149,3 @@ func saveComparison(comparison CoreComparison) error {
 	fmt.Printf("Comparison results saved to: %s\n", filename)
 	return nil
 }
-
-// parseGDBOutput processes GDB output and updates the analysis structure
-func parseGDBOutput(output string, analysis *CoreAnalysis) {
-	// Parse stack trace
-	analysis.StackTrace = parseStackTrace(output)
-
-	// Parse threads
-	analysis.Threads = parseThreads(output)
-
-	// Parse registers
-	analysis.Registers = parseRegisters(output)
-
-	// Parse signal information
-	analysis.SignalInfo = parseSignalInfo(output)
-
-	// Parse shared libraries
-	analysis.Libraries = parseSharedLibraries(output)
-
-	// Enhance signal information with context
-	enhanceSignalInfo(&analysis.SignalInfo, analysis)
-}
