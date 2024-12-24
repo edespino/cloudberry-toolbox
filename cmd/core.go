@@ -21,20 +21,25 @@ var coreCmd = &cobra.Command{
 	Use:   "core [core_file_or_directory]",
 	Short: "Analyze PostgreSQL core files",
 	Long: `Analyze PostgreSQL core files from Apache CloudBerry (Incubating).
-This tool provides detailed analysis of core dumps including stack traces,
-thread information, signal analysis, and shared library information.
+This tool provides detailed analysis of core dumps including:
 
-It can analyze a single core file or multiple core files in a directory:
+  - **Signal Mapping:** Identifies the signal causing the core dump with detailed descriptions.
+  - **Stack Trace Analysis:** Extracts and organizes stack frames for crash investigation.
+  - **Thread Inspection:** Categorizes and deduplicates threads for better debugging insights.
+  - **Shared Library Mapping:** Details on libraries loaded during execution.
+  - **CloudBerry-Specific Insights:** Highlights interconnect crashes, motion layer issues, and query executor states.
+  - **Pattern Detection:** Compares multiple core files to identify recurring issues.
+
+Examples:
   cbtoolbox core /path/to/core.1234
-  cbtoolbox core /var/lib/postgres/cores/ --max-cores=5
+  cbtoolbox core /var/lib/postgres/cores/ --max-cores=5 --format=json
 
-Features:
-- Stack trace analysis
-- Thread inspection
-- Register state examination
-- Signal information
-- Shared library mapping
-- Core file comparison for pattern detection`,
+Flags:
+  - `--output-dir`: Specify the directory to store analysis results (default: /var/log/postgres_cores).
+  - `--max-cores`: Limit the number of core files analyzed.
+  - `--compare`: Enable comparison of core files to identify common crash patterns.
+  - `--format`: Output format: yaml (default) or json.
+`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("please specify a core file or directory")
