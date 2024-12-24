@@ -210,6 +210,7 @@ func findAddressLibrary(address string, libraries []LibraryInfo) *LibraryInfo {
 func getLibrarySummary(libraries []LibraryInfo) string {
     var summary strings.Builder
 
+    // Count by category
     counts := make(map[string]int)
     for _, lib := range libraries {
 	counts[lib.Type]++
@@ -219,11 +220,18 @@ func getLibrarySummary(libraries []LibraryInfo) string {
     for _, category := range libraryCategories {
 	if count := counts[category.Type]; count > 0 {
 	    summary.WriteString(
-		"  " + category.Description + ": " + strings.Repeat(".", 20) + " " + strings.TrimSpace(fmt.Sprint(count)) + "\n",
+		strings.Repeat(" ", 2) +
+		category.Description +
+		": " +
+		strings.Repeat(".", 20) +
+		" " +
+		strings.Repeat(" ", 3-len(string(count))) +
+		string(count) + "\n",
 	    )
 	}
     }
 
+    // Report unloaded libraries
     var unloaded []string
     for _, lib := range libraries {
 	if !lib.IsLoaded {
@@ -233,7 +241,7 @@ func getLibrarySummary(libraries []LibraryInfo) string {
     if len(unloaded) > 0 {
 	summary.WriteString("\nUnloaded Libraries:\n")
 	for _, lib := range unloaded {
-	    summary.WriteString("  " + lib + "\n")
+	    summary.WriteString(strings.Repeat(" ", 2) + lib + "\n")
 	}
     }
 
