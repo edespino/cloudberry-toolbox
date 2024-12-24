@@ -1,4 +1,20 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // File: cmd/core_parser_libraries.go
+// Purpose: Provides utilities for parsing and analyzing shared library information
+// from GDB output. Includes categorization of libraries, extraction of version
+// information, and summary generation for shared libraries loaded in CloudBerry.
+// Dependencies: Relies on Go's standard libraries for regex and string manipulation.
 
 package cmd
 
@@ -8,14 +24,14 @@ import (
     "path/filepath"
 )
 
-// LibraryCategory defines types of shared libraries
+// LibraryCategory defines types of shared libraries.
 type LibraryCategory struct {
-    Type        string
-    Description string
-    Pattern     string
+    Type        string // The category type, e.g., "Core", "System".
+    Description string // A human-readable description of the category.
+    Pattern     string // A regex pattern to identify libraries in this category.
 }
 
-// libraryCategories defines known library categories
+// libraryCategories defines known library categories.
 var libraryCategories = []LibraryCategory{
     {
 	Type:        "Core",
@@ -54,7 +70,11 @@ var libraryCategories = []LibraryCategory{
     },
 }
 
-// parseSharedLibraries extracts shared library information from GDB output
+// parseSharedLibraries extracts shared library information from GDB output.
+// Parameters:
+// - output: The raw GDB output containing library mappings.
+// Returns:
+// - A slice of LibraryInfo objects with details about each library.
 func parseSharedLibraries(output string) []LibraryInfo {
     var libraries []LibraryInfo
     libraryRE := regexp.MustCompile(`(?m)^(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+(\w+)\s+(.+?\.so[.0-9]*)`)
@@ -84,7 +104,11 @@ func parseSharedLibraries(output string) []LibraryInfo {
     return libraries
 }
 
-// categorizeLibrary determines the type of shared library
+// categorizeLibrary determines the type of shared library.
+// Parameters:
+// - path: The file path of the library.
+// Returns:
+// - A string representing the library category type.
 func categorizeLibrary(path string) string {
     for _, category := range libraryCategories {
 	if matched, _ := regexp.MatchString(category.Pattern, path); matched {
@@ -94,15 +118,17 @@ func categorizeLibrary(path string) string {
     return "Other"
 }
 
-// getLibraryVersion attempts to extract version from library name
+// getLibraryVersion attempts to extract version information from a library's name.
+// Parameters:
+// - libPath: The file path of the library.
+// Returns:
+// - A string representing the library version, if found; otherwise, an empty string.
 func getLibraryVersion(libPath string) string {
-    // Try exact version match first
     verMatch := regexp.MustCompile(`\.so[.]([0-9.]+)$`).FindStringSubmatch(libPath)
     if verMatch != nil {
 	return verMatch[1]
     }
 
-    // Try version in path components
     parts := strings.Split(filepath.Base(libPath), "-")
     for _, part := range parts {
 	if regexp.MustCompile(`^[0-9.]+$`).MatchString(part) {
@@ -113,18 +139,20 @@ func getLibraryVersion(libPath string) string {
     return ""
 }
 
-// analyzeLibraries provides analysis of loaded libraries
+// analyzeLibraries provides analysis of loaded libraries.
+// Parameters:
+// - libraries: A slice of LibraryInfo objects.
+// Returns:
+// - A map containing analysis details, such as counts by category and unloaded libraries.
 func analyzeLibraries(libraries []LibraryInfo) map[string]interface{} {
     analysis := make(map[string]interface{})
 
-    // Count by category
     categoryCounts := make(map[string]int)
     for _, lib := range libraries {
 	categoryCounts[lib.Type]++
     }
     analysis["category_counts"] = categoryCounts
 
-    // Find unloaded libraries
     var unloaded []string
     for _, lib := range libraries {
 	if !lib.IsLoaded {
@@ -135,7 +163,6 @@ func analyzeLibraries(libraries []LibraryInfo) map[string]interface{} {
 	analysis["unloaded_libraries"] = unloaded
     }
 
-    // Group CloudBerry components
     cloudberryComponents := make(map[string][]string)
     for _, lib := range libraries {
 	if lib.Type == "Core" || lib.Type == "Extension" {
@@ -151,7 +178,12 @@ func analyzeLibraries(libraries []LibraryInfo) map[string]interface{} {
     return analysis
 }
 
-// findAddressLibrary finds which library contains a given address
+// findAddressLibrary determines which library contains a given memory address.
+// Parameters:
+// - address: The memory address to locate.
+// - libraries: A slice of LibraryInfo objects.
+// Returns:
+// - A pointer to the LibraryInfo containing the address, or nil if not found.
 func findAddressLibrary(address string, libraries []LibraryInfo) *LibraryInfo {
     if !strings.HasPrefix(address, "0x") {
 	address = "0x" + address
@@ -162,7 +194,6 @@ func findAddressLibrary(address string, libraries []LibraryInfo) *LibraryInfo {
 	start := strings.ToLower(lib.TextStart)
 	end := strings.ToLower(lib.TextEnd)
 
-	// Compare addresses as strings to avoid overflow
 	if addr >= start && addr <= end {
 	    return &lib
 	}
@@ -171,11 +202,14 @@ func findAddressLibrary(address string, libraries []LibraryInfo) *LibraryInfo {
     return nil
 }
 
-// getLibrarySummary provides a human-readable summary of libraries
+// getLibrarySummary provides a human-readable summary of libraries.
+// Parameters:
+// - libraries: A slice of LibraryInfo objects.
+// Returns:
+// - A string summarizing the library categories and any unloaded libraries.
 func getLibrarySummary(libraries []LibraryInfo) string {
     var summary strings.Builder
 
-    // Count by category
     counts := make(map[string]int)
     for _, lib := range libraries {
 	counts[lib.Type]++
@@ -185,18 +219,11 @@ func getLibrarySummary(libraries []LibraryInfo) string {
     for _, category := range libraryCategories {
 	if count := counts[category.Type]; count > 0 {
 	    summary.WriteString(
-		strings.Repeat(" ", 2) +
-		category.Description +
-		": " +
-		strings.Repeat(".", 20) +
-		" " +
-		strings.Repeat(" ", 3-len(string(count))) +
-		string(count) + "\n",
+		"  " + category.Description + ": " + strings.Repeat(".", 20) + " " + strings.TrimSpace(fmt.Sprint(count)) + "\n",
 	    )
 	}
     }
 
-    // Report unloaded libraries
     var unloaded []string
     for _, lib := range libraries {
 	if !lib.IsLoaded {
@@ -206,7 +233,7 @@ func getLibrarySummary(libraries []LibraryInfo) string {
     if len(unloaded) > 0 {
 	summary.WriteString("\nUnloaded Libraries:\n")
 	for _, lib := range unloaded {
-	    summary.WriteString(strings.Repeat(" ", 2) + lib + "\n")
+	    summary.WriteString("  " + lib + "\n")
 	}
     }
 

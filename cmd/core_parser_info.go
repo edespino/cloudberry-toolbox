@@ -1,4 +1,8 @@
 // File: cmd/core_parser_info.go
+// Purpose: Provides utilities to extract and process PostgreSQL/CloudBerry process information
+// from core dumps and GDB output. Includes methods for parsing basic information, enhancing
+// process context, and generating human-readable descriptions of the crash environment.
+// Dependencies: Relies on Go's standard libraries for string manipulation, regex operations, and time handling.
 
 package cmd
 
@@ -9,7 +13,7 @@ import (
     "time"
 )
 
-// processTypes maps CloudBerry process types to descriptions
+// processTypes maps CloudBerry process types to descriptions.
 var processTypes = map[string]string{
     "coredw":    "Coordinator Write Process",
     "corerd":    "Coordinator Read Process",
@@ -19,52 +23,58 @@ var processTypes = map[string]string{
     "standby":   "Standby Master Process",
 }
 
-// parseBasicInfo extracts and populates the basic_info section
+// parseBasicInfo extracts and populates the basic_info section.
+// Parameters:
+// - fileOutput: The raw output from the core dump file analysis.
+// Returns:
+// - A map containing key-value pairs of extracted process details.
 func parseBasicInfo(fileOutput string) map[string]string {
-	info := make(map[string]string)
+    info := make(map[string]string)
 
-	// Patterns for extracting data
-	patterns := map[string]*regexp.Regexp{
-		"database_id":    regexp.MustCompile(`postgres:\s+(\d+)`),
-		"segment_id":     regexp.MustCompile(`seg(\d+)`),
-		"connection_id":  regexp.MustCompile(`con(\d+)`),
-		"command_id":     regexp.MustCompile(`cmd(\d+)`),
-		"client_pid":     regexp.MustCompile(`\((\d+)\)`),
-		"client_address": regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`),
-	}
+    // Patterns for extracting data
+    patterns := map[string]*regexp.Regexp{
+	"database_id":    regexp.MustCompile(`postgres:\s+(\d+)`),
+	"segment_id":     regexp.MustCompile(`seg(\d+)`),
+	"connection_id":  regexp.MustCompile(`con(\d+)`),
+	"command_id":     regexp.MustCompile(`cmd(\d+)`),
+	"client_pid":     regexp.MustCompile(`\((\d+)\)`),
+	"client_address": regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`),
+    }
 
-	// Extract data using patterns
-	for key, re := range patterns {
-		if matches := re.FindStringSubmatch(fileOutput); matches != nil && len(matches) > 1 {
-			info[key] = matches[1]
-		} else {
-			info[key] = "N/A" // Assign a default value for missing matches
-		}
-	}
-
-	// Extract core_time (assumed to be present in the file output as a timestamp)
-	if matches := regexp.MustCompile(`created:\s+"([\d\-:T\sZ]+)"`).FindStringSubmatch(fileOutput); matches != nil {
-		info["core_time"] = matches[1]
+    // Extract data using patterns
+    for key, re := range patterns {
+	if matches := re.FindStringSubmatch(fileOutput); matches != nil && len(matches) > 1 {
+	    info[key] = matches[1]
 	} else {
-		info["core_time"] = "N/A"
+	    info[key] = "N/A" // Assign a default value for missing matches
 	}
+    }
 
-	// Additional derived fields
-	if _, ok := info["database_id"]; ok {
-		info["description"] = fmt.Sprintf(
-			"Coordinator Write (Read-Only Mode), Database %s, Segment %s, Connection %s, Client %s (PID %s)",
-			info["database_id"], info["segment_id"], info["connection_id"], info["client_address"], info["client_pid"],
-		)
-		info["process_type"] = "Coordinator Write (Read-Only Mode)"
-	}
+    // Extract core_time (assumed to be present in the file output as a timestamp)
+    if matches := regexp.MustCompile(`created:\s+"([\d\-:T\sZ]+)"`).FindStringSubmatch(fileOutput); matches != nil {
+	info["core_time"] = matches[1]
+    } else {
+	info["core_time"] = "N/A"
+    }
 
-	return info
+    // Additional derived fields
+    if _, ok := info["database_id"]; ok {
+	info["description"] = fmt.Sprintf(
+	    "Coordinator Write (Read-Only Mode), Database %s, Segment %s, Connection %s, Client %s (PID %s)",
+	    info["database_id"], info["segment_id"], info["connection_id"], info["client_address"], info["client_pid"],
+	)
+	info["process_type"] = "Coordinator Write (Read-Only Mode)"
+    }
+
+    return info
 }
 
+// extractProcessInfo populates process information based on the command line.
+// Parameters:
+// - cmdline: The command-line string of the PostgreSQL/CloudBerry process.
+// - info: A map to store extracted process details.
 func extractProcessInfo(cmdline string, info map[string]string) {
-    // Extract basic postgres info
     if strings.HasPrefix(cmdline, "postgres:") {
-	// Split on commas to handle different fields
 	parts := strings.Split(cmdline, ",")
 	for _, part := range strings.Fields(parts[0]) {
 	    if part == "postgres:" {
@@ -74,7 +84,6 @@ func extractProcessInfo(cmdline string, info map[string]string) {
 	    break
 	}
 
-	// Process type identification
 	if strings.Contains(cmdline, "read_only coredw") {
 	    info["process_type"] = "Coordinator Write (Read-Only Mode)"
 	} else if strings.Contains(cmdline, "coredw") {
@@ -83,7 +92,6 @@ func extractProcessInfo(cmdline string, info map[string]string) {
 	    info["process_type"] = "Coordinator Read Process"
 	}
 
-	// Extract various IDs using regular expressions
 	patterns := map[string]*regexp.Regexp{
 	    "segment_id": regexp.MustCompile(`seg(\d+)`),
 	    "connection_id": regexp.MustCompile(`con(\d+)`),
@@ -98,14 +106,12 @@ func extractProcessInfo(cmdline string, info map[string]string) {
 	    }
 	}
 
-	// Extract client address with proper handling
 	ipRE := regexp.MustCompile(`\s(\d+\.\d+\.\d+\.\d+)\s*\(`)
 	if matches := ipRE.FindStringSubmatch(cmdline); matches != nil {
 	    info["client_address"] = matches[1]
 	}
     }
 
-    // Add description
     var desc []string
     if procType := info["process_type"]; procType != "" {
 	desc = append(desc, procType)
@@ -132,14 +138,15 @@ func extractProcessInfo(cmdline string, info map[string]string) {
     }
 }
 
-// enhanceProcessInfo adds additional context to the basic info
+// enhanceProcessInfo adds additional context to the basic info.
+// Parameters:
+// - info: A map of process details.
+// - analysis: The CoreAnalysis object containing the process data.
 func enhanceProcessInfo(info map[string]string, analysis *CoreAnalysis) {
-    // Add timestamp in human-readable format
     if t, err := time.Parse(time.RFC3339, analysis.Timestamp); err == nil {
 	info["analysis_time"] = t.Format("2006-01-02 15:04:05 MST")
     }
 
-    // Enhance process description
     var description []string
     if procType := info["process_type"]; procType != "" {
 	description = append(description, procType)
@@ -161,7 +168,6 @@ func enhanceProcessInfo(info map[string]string, analysis *CoreAnalysis) {
 	info["process_description"] = strings.Join(description, ", ")
     }
 
-    // Add thread summary
     threadCount := make(map[string]int)
     for _, thread := range analysis.Threads {
 	threadCount[thread.Name]++
@@ -179,16 +185,19 @@ func enhanceProcessInfo(info map[string]string, analysis *CoreAnalysis) {
     }
 }
 
-// extractUserInfo parses user/group information from file output
+// extractUserInfo parses user/group information from file output.
+// Parameters:
+// - output: The raw output from the core dump analysis.
+// - info: A map to store extracted user/group details.
 func extractUserInfo(output string, info map[string]string) {
     patterns := []struct {
 	pattern string
 	key     string
     }{
-	{`real uid: (\d+)`, "real_uid"},
-	{`effective uid: (\d+)`, "effective_uid"},
-	{`real gid: (\d+)`, "real_gid"},
-	{`effective gid: (\d+)`, "effective_gid"},
+	{"real uid: (\d+)", "real_uid"},
+	{"effective uid: (\d+)", "effective_uid"},
+	{"real gid: (\d+)", "real_gid"},
+	{"effective gid: (\d+)", "effective_gid"},
     }
 
     for _, p := range patterns {
@@ -199,18 +208,20 @@ func extractUserInfo(output string, info map[string]string) {
     }
 }
 
-// getProcessDetails provides a human-readable summary of the process
+// getProcessDetails provides a human-readable summary of the process.
+// Parameters:
+// - info: A map containing process details.
+// Returns:
+// - A string summarizing the process details.
 func getProcessDetails(info map[string]string) string {
     var details strings.Builder
 
-    // Start with process type if available
     if procType := info["process_type"]; procType != "" {
 	details.WriteString(procType)
     } else {
 	details.WriteString("PostgreSQL Process")
     }
 
-    // Add database and connection info
     if dbID := info["database_id"]; dbID != "" {
 	details.WriteString(fmt.Sprintf(" (DB: %s", dbID))
 	if connID := info["connection_id"]; connID != "" {
@@ -219,55 +230,13 @@ func getProcessDetails(info map[string]string) string {
 	details.WriteString(")")
     }
 
-    // Add segment info for segment processes
     if segID := info["segment_id"]; segID != "" {
 	details.WriteString(fmt.Sprintf(" on segment %s", segID))
     }
 
-    // Add client address if available
     if addr := info["client_addr"]; addr != "" {
 	details.WriteString(fmt.Sprintf(" from %s", addr))
     }
 
     return details.String()
-}
-
-// analyzeCrashContext provides context about the crash environment
-func analyzeCrashContext(analysis *CoreAnalysis) string {
-    var context strings.Builder
-
-    // Add process identification
-    if details := getProcessDetails(analysis.BasicInfo); details != "" {
-	context.WriteString(details)
-	context.WriteString("\n")
-    }
-
-    // Add timing information
-    if coreTime := analysis.BasicInfo["core_time"]; coreTime != "" {
-	context.WriteString(fmt.Sprintf("Core dumped at: %s\n", coreTime))
-    }
-
-    // Add thread context
-    var activeThreads int
-    var crashedThread string
-    for _, thread := range analysis.Threads {
-	activeThreads++
-	if thread.IsCrashed {
-	    crashedThread = thread.Name
-	}
-    }
-    context.WriteString(fmt.Sprintf("Active threads: %d\n", activeThreads))
-    if crashedThread != "" {
-	context.WriteString(fmt.Sprintf("Crash occurred in: %s\n", crashedThread))
-    }
-
-    // Add query context if available
-    if cmdID := analysis.BasicInfo["command_id"]; cmdID != "" {
-	context.WriteString(fmt.Sprintf("Command ID: %s\n", cmdID))
-    }
-    if sliceID := analysis.BasicInfo["slice_id"]; sliceID != "" {
-	context.WriteString(fmt.Sprintf("Slice ID: %s\n", sliceID))
-    }
-
-    return context.String()
 }

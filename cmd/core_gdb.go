@@ -1,4 +1,22 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // File: cmd/core_gdb.go
+// Purpose: Implements functionality for analyzing PostgreSQL core files using GDB.
+// This file defines the `analyzeCoreFile` function, which integrates with GDB to extract
+// detailed information such as stack traces, threads, signal details, and shared library mappings.
+// The data is structured into the `CoreAnalysis` object for further processing.
+// Dependencies: Relies on external GDB commands and PostgreSQL/CloudBerry binaries.
+
 package cmd
 
 import (
@@ -10,6 +28,13 @@ import (
 	"time"
 )
 
+// analyzeCoreFile performs a comprehensive analysis of a core dump file.
+// Parameters:
+// - corePath: Path to the core dump file.
+// - gphome: Path to the PostgreSQL/CloudBerry installation.
+// Returns:
+// - A `CoreAnalysis` object containing parsed details from the core dump.
+// - An error if the analysis fails at any step.
 func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	analysis := CoreAnalysis{
 		Timestamp: time.Now().Format(time.RFC3339),
@@ -68,7 +93,11 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	return analysis, nil
 }
 
-// deduplicateStackTrace removes duplicate stack frames
+// deduplicateStackTrace removes duplicate stack frames from the analysis.
+// Parameters:
+// - frames: A slice of `StackFrame` objects representing the stack trace.
+// Returns:
+// - A deduplicated slice of `StackFrame` objects.
 func deduplicateStackTrace(frames []StackFrame) []StackFrame {
 	seen := make(map[string]bool)
 	var result []StackFrame
@@ -84,7 +113,12 @@ func deduplicateStackTrace(frames []StackFrame) []StackFrame {
 	return result
 }
 
-// getPostgresInfo collects PostgreSQL binary information
+// getPostgresInfo collects PostgreSQL binary information such as version and build options.
+// Parameters:
+// - binaryPath: Path to the PostgreSQL binary.
+// Returns:
+// - A `PostgresInfo` object containing version and configuration details.
+// - An error if the information cannot be retrieved.
 func getPostgresInfo(binaryPath string) (PostgresInfo, error) {
 	info := PostgresInfo{
 		BinaryPath: binaryPath,
@@ -121,13 +155,22 @@ func getPostgresInfo(binaryPath string) (PostgresInfo, error) {
 	return info, nil
 }
 
-// dirExists checks if directory exists
+// dirExists checks if a directory exists at the specified path.
+// Parameters:
+// - path: The directory path to check.
+// Returns:
+// - True if the directory exists, false otherwise.
 func dirExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
 }
 
-// gdbAnalysis performs detailed analysis using GDB
+// gdbAnalysis performs detailed analysis using GDB commands.
+// Parameters:
+// - analysis: A pointer to the `CoreAnalysis` object to update with GDB results.
+// - binaryPath: Path to the PostgreSQL binary.
+// Returns:
+// - An error if the GDB commands fail.
 func gdbAnalysis(analysis *CoreAnalysis, binaryPath string) error {
   gdbCmds := []string{
       "set pagination off",
@@ -175,7 +218,10 @@ func gdbAnalysis(analysis *CoreAnalysis, binaryPath string) error {
 	return nil
 }
 
-// parseGDBOutput processes GDB output and updates the analysis structure
+// parseGDBOutput processes GDB output and updates the analysis structure.
+// Parameters:
+// - output: The raw output from GDB.
+// - analysis: A pointer to the `CoreAnalysis` object to update.
 func parseGDBOutput(output string, analysis *CoreAnalysis) {
 	// Parse stack trace
 	analysis.StackTrace = parseStackTrace(output)

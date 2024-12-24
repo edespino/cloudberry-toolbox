@@ -1,4 +1,20 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // File: cmd/core_parser_signal.go
+// Purpose: Provides utilities for parsing and analyzing signal information from GDB output.
+// Includes functions to extract signal details, add contextual information, and enhance
+// the understanding of signal-related crashes in CloudBerry processes.
+// Dependencies: Uses Go's standard libraries for string manipulation, regex, and formatting.
 
 package cmd
 
@@ -9,7 +25,7 @@ import (
     "regexp"
 )
 
-// signalMap provides names for common signals
+// signalMap provides names for common signals.
 var signalMap = map[int]string{
     1:  "SIGHUP",   // Hangup
     2:  "SIGINT",   // Terminal interrupt
@@ -25,13 +41,13 @@ var signalMap = map[int]string{
     15: "SIGTERM",  // Termination
 }
 
-// signalCodeMap maps signal-specific codes to descriptions
+// signalCodeMap maps signal-specific codes to descriptions.
 var signalCodeMap = map[int]map[int]string{
     11: { // SIGSEGV codes
 	1: "SEGV_MAPERR (Address not mapped to object)",
 	2: "SEGV_ACCERR (Invalid permissions for mapped object)",
 	3: "SEGV_BNDERR (Failed address bound checks)",
-	4: "SEGV_PKUERR (Access was denied by memory protection keys)",
+	4: "SEGV_PKUERR (Access denied by memory protection keys)",
     },
     7: { // SIGBUS codes
 	1: "BUS_ADRALN (Invalid address alignment)",
@@ -50,26 +66,31 @@ var signalCodeMap = map[int]map[int]string{
     },
 }
 
-// parseSignalInfo extracts signal information from GDB output
+// parseSignalInfo extracts signal information from GDB output.
+// Parameters:
+// - output: The raw GDB output containing signal information.
+// Returns:
+// - A SignalInfo object populated with the signal details.
 func parseSignalInfo(output string) SignalInfo {
     info := SignalInfo{}
 
-    // Look for direct signal info
     siginfoRE := regexp.MustCompile(`si_signo = (\d+).*?si_code = (\d+)`)
     if matches := siginfoRE.FindStringSubmatch(output); matches != nil {
-        info.SignalNumber = parseInt(matches[1])
-        info.SignalCode = parseInt(matches[2])
-        info.SignalName = getSignalName(info.SignalNumber)
-        info.SignalDescription = getSignalDescription(info.SignalNumber, info.SignalCode)
+	info.SignalNumber = parseInt(matches[1])
+	info.SignalCode = parseInt(matches[2])
+	info.SignalName = getSignalName(info.SignalNumber)
+	info.SignalDescription = getSignalDescription(info.SignalNumber, info.SignalCode)
     }
 
-    // Parse fault info
     info.FaultInfo = parseFaultInfo(output)
-
     return info
 }
 
-// getSignalName converts signal number to name
+// getSignalName converts a signal number to its corresponding name.
+// Parameters:
+// - signo: The signal number.
+// Returns:
+// - The signal name as a string.
 func getSignalName(signo int) string {
     if name, ok := signalMap[signo]; ok {
 	return name
@@ -77,25 +98,28 @@ func getSignalName(signo int) string {
     return fmt.Sprintf("SIGNAL_%d", signo)
 }
 
-// getSignalDescription provides detailed signal description
+// getSignalDescription provides a detailed description of a signal.
+// Parameters:
+// - signo: The signal number.
+// - code: The signal code.
+// Returns:
+// - A string containing a detailed description of the signal.
 func getSignalDescription(signo, code int) string {
     var desc strings.Builder
 
-    // Get basic signal description
     switch signo {
-    case 11: // SIGSEGV
+    case 11:
 	desc.WriteString("Segmentation fault")
-    case 6: // SIGABRT
+    case 6:
 	desc.WriteString("Process abort signal (possibly assertion failure)")
-    case 7: // SIGBUS
+    case 7:
 	desc.WriteString("Bus error")
-    case 8: // SIGFPE
+    case 8:
 	desc.WriteString("Floating point exception")
     default:
 	desc.WriteString(fmt.Sprintf("Signal %d", signo))
     }
 
-    // Add specific code description if available
     if codes, ok := signalCodeMap[signo]; ok {
 	if codeDesc, ok := codes[code]; ok {
 	    desc.WriteString(fmt.Sprintf(" - %s", codeDesc))
@@ -107,17 +131,19 @@ func getSignalDescription(signo, code int) string {
     return desc.String()
 }
 
-// enhanceSignalInfo adds context to signal information
+// enhanceSignalInfo adds additional context to signal information.
+// Parameters:
+// - info: A pointer to the SignalInfo object to enhance.
+// - analysis: A CoreAnalysis object containing relevant analysis data.
 func enhanceSignalInfo(info *SignalInfo, analysis *CoreAnalysis) {
-    // Try to detect signal from crash handler if not already set
     if info.SignalNumber == 0 {
 	for _, frame := range analysis.StackTrace {
 	    switch {
 	    case strings.Contains(frame.Function, "SigillSigsegvSigbus"):
-		info.SignalNumber = 11 // SIGSEGV
+		info.SignalNumber = 11
 		info.SignalName = "SIGSEGV"
 		info.SignalDescription = "Segmentation fault"
-		// Look for fault context
+
 		for _, thread := range analysis.Threads {
 		    if !thread.IsCrashed {
 			if functionName := findKeyFunction(thread.Backtrace); functionName != "" {
@@ -127,35 +153,35 @@ func enhanceSignalInfo(info *SignalInfo, analysis *CoreAnalysis) {
 		    }
 		}
 	    case strings.Contains(frame.Function, "AbortHandler"):
-		info.SignalNumber = 6 // SIGABRT
+		info.SignalNumber = 6
 		info.SignalName = "SIGABRT"
 		info.SignalDescription = "Process abort"
 	    }
 	}
     }
 
-    // Add context about where crash occurred
     for _, thread := range analysis.Threads {
 	if thread.IsCrashed {
-	    continue  // Skip crashed thread as it's in signal handler
+	    continue
 	}
 	if keyFunc := findKeyFunction(thread.Backtrace); keyFunc != "" {
 	    info.SignalDescription += fmt.Sprintf(" (active thread: %s)", keyFunc)
 	}
     }
 
-    // Add CloudBerry-specific context
     addCloudBerryContext(info, analysis)
 }
 
-// addFaultAddressContext adds information about the fault address
+// addFaultAddressContext adds fault address-related details to the signal description.
+// Parameters:
+// - info: A pointer to the SignalInfo object.
+// - analysis: A CoreAnalysis object containing library mappings.
 func addFaultAddressContext(info *SignalInfo, analysis *CoreAnalysis) {
     addr, err := strconv.ParseUint(strings.TrimPrefix(info.FaultAddress, "0x"), 16, 64)
     if err != nil {
 	return
     }
 
-    // Check if address is in any mapped library
     for _, lib := range analysis.Libraries {
 	start, _ := strconv.ParseUint(strings.TrimPrefix(lib.TextStart, "0x"), 16, 64)
 	end, _ := strconv.ParseUint(strings.TrimPrefix(lib.TextEnd, "0x"), 16, 64)
@@ -165,15 +191,16 @@ func addFaultAddressContext(info *SignalInfo, analysis *CoreAnalysis) {
 	}
     }
 
-    // If not in any library, might be stack/heap
     if info.SignalDescription != "" {
 	info.SignalDescription += " (fault address not in mapped memory)"
     }
 }
 
-// addCloudBerryContext adds CloudBerry-specific crash context
+// addCloudBerryContext adds context specific to CloudBerry processes.
+// Parameters:
+// - info: A pointer to the SignalInfo object.
+// - analysis: A CoreAnalysis object containing process and thread details.
 func addCloudBerryContext(info *SignalInfo, analysis *CoreAnalysis) {
-    // Look for common CloudBerry crash patterns
     for _, thread := range analysis.Threads {
 	if !thread.IsCrashed {
 	    continue
@@ -191,7 +218,6 @@ func addCloudBerryContext(info *SignalInfo, analysis *CoreAnalysis) {
 	}
     }
 
-    // Add information about query if available
     if cmdline, ok := analysis.BasicInfo["cmdline"]; ok {
 	if strings.Contains(cmdline, "seg") {
 	    info.SignalDescription += fmt.Sprintf("\nProcess was a segment worker: %s", cmdline)
@@ -199,17 +225,17 @@ func addCloudBerryContext(info *SignalInfo, analysis *CoreAnalysis) {
     }
 }
 
-// Add to cmd/core_parser_signal.go
-
+// detectSignalFromStack attempts to infer signal details from the stack trace.
+// Parameters:
+// - analysis: A pointer to the CoreAnalysis object containing stack trace information.
 func detectSignalFromStack(analysis *CoreAnalysis) {
     for _, thread := range analysis.Threads {
 	for _, frame := range thread.Backtrace {
 	    if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
-		analysis.SignalInfo.SignalNumber = 11 // SIGSEGV
+		analysis.SignalInfo.SignalNumber = 11
 		analysis.SignalInfo.SignalName = "SIGSEGV"
 		analysis.SignalInfo.SignalDescription = "Segmentation fault"
 
-		// Find the crashing thread (not signal handler)
 		for _, t := range analysis.Threads {
 		    if !t.IsCrashed && len(t.Backtrace) > 0 {
 			if keyFunc := findKeyFunction(t.Backtrace); keyFunc != "" {
@@ -227,13 +253,17 @@ func detectSignalFromStack(analysis *CoreAnalysis) {
     }
 }
 
+// parseFaultInfo extracts fault-related information from GDB output.
+// Parameters:
+// - output: The raw GDB output containing fault information.
+// Returns:
+// - A SignalFault object with extracted details.
 func parseFaultInfo(output string) *SignalFault {
     sigFaultRE := regexp.MustCompile(`_sigfault\s*=\s*{[^}]*si_addr\s*=\s*(0x[0-9a-fA-F]+)`)
     if matches := sigFaultRE.FindStringSubmatch(output); matches != nil {
-        return &SignalFault{
-            Address: matches[1],
-        }
+	return &SignalFault{
+	    Address: matches[1],
+	}
     }
     return nil
 }
-

@@ -1,4 +1,22 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // File: cmd/core.go
+// Implements the `core` command for analyzing PostgreSQL core dumps.
+// Purpose: This file implements the core analysis functionality for PostgreSQL core dumps in Apache CloudBerry (Incubating).
+// It defines the `core` command, which analyzes core dumps to extract stack traces, thread information, signal details, and
+// shared library mappings. Additionally, it supports comparing multiple core files to identify common crash patterns.
+// Dependencies: Utilizes the Cobra library for CLI command handling and standard libraries for file management.
+
 package cmd
 
 import (
@@ -10,8 +28,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Global variables for CLI flags
 var (
-	outputDir   string
+	outputDir   string // Directory to store analysis results
 	maxCores    int
 	compareFlag bool
 )
@@ -51,8 +70,8 @@ func init() {
 }
 
 // runCoreAnalysis is the main entry point for core file analysis
-// In core.go
-
+// Validates inputs, processes core files, and optionally compares results.
+// runCoreAnalysis validates input, analyzes core files, and optionally compares results.
 func runCoreAnalysis(path string) error {
     if err := validateFormat(formatFlag); err != nil {
         return err
@@ -131,6 +150,8 @@ func runCoreAnalysis(path string) error {
 }
 
 // findCoreFiles locates core files in the specified path
+// Supports multiple filename patterns for flexibility.
+// findCoreFiles locates core files matching known patterns in the given path.
 func findCoreFiles(path string) ([]string, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
@@ -160,4 +181,3 @@ func findCoreFiles(path string) ([]string, error) {
 
 	return coreFiles, nil
 }
-

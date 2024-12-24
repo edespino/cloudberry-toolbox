@@ -1,4 +1,20 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // File: cmd/core_parser_output.go
+// Purpose: Implements utilities for saving and comparing core dump analysis results.
+// Includes functions to serialize analysis data in JSON or YAML format and
+// to identify common patterns across multiple core files.
+// Dependencies: Uses Go standard libraries for JSON, YAML, file handling, and string manipulation.
 
 package cmd
 
@@ -14,12 +30,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// saveAnalysis saves analysis results to a file
+// saveAnalysis saves analysis results to a file.
+// Parameters:
+// - analysis: The CoreAnalysis object containing the data to save.
+// Returns:
+// - An error if the operation fails, or nil otherwise.
 func saveAnalysis(analysis CoreAnalysis) error {
 	timestamp := time.Now().Format("20060102_150405")
 	filename := filepath.Join(outputDir, fmt.Sprintf("core_analysis_%s.%s", timestamp, formatFlag))
 
-	// Process information before saving
+	// Deduplicate threads and parse basic info
 	analysis.Threads = deduplicateThreads(analysis.Threads)
 	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo.FileOutput)
 
@@ -31,7 +51,6 @@ func saveAnalysis(analysis CoreAnalysis) error {
 				break
 			}
 		}
-		// Update thread role
 		analysis.Threads[i].Name = determineThreadRole(analysis.Threads[i].Backtrace)
 	}
 
@@ -54,7 +73,11 @@ func saveAnalysis(analysis CoreAnalysis) error {
 	return nil
 }
 
-// compareCores analyzes multiple core files to identify patterns
+// compareCores analyzes multiple core files to identify patterns.
+// Parameters:
+// - analyses: A slice of CoreAnalysis objects representing individual core dump analyses.
+// Returns:
+// - A CoreComparison object summarizing common patterns and statistics.
 func compareCores(analyses []CoreAnalysis) CoreComparison {
 	comparison := CoreComparison{
 		TotalCores:      len(analyses),
@@ -94,7 +117,7 @@ func compareCores(analyses []CoreAnalysis) CoreComparison {
 		var signature strings.Builder
 		signature.WriteString(signal)
 		for i, frame := range analysis.StackTrace {
-			if i < 3 && !isSystemFunction(frame.Function) { // Use top 3 non-system frames
+			if i < 3 && !isSystemFunction(frame.Function) {
 				signature.WriteString("|" + frame.Function)
 			}
 		}
@@ -103,7 +126,7 @@ func compareCores(analyses []CoreAnalysis) CoreComparison {
 
 	// Generate crash patterns
 	for signature, group := range crashGroups {
-		if len(group) > 1 { // Only include patterns that occur multiple times
+		if len(group) > 1 {
 			parts := strings.Split(signature, "|")
 			pattern := CrashPattern{
 				Signal:            parts[0],
@@ -126,7 +149,11 @@ func compareCores(analyses []CoreAnalysis) CoreComparison {
 	return comparison
 }
 
-// saveComparison saves comparison results to a file
+// saveComparison saves comparison results to a file.
+// Parameters:
+// - comparison: The CoreComparison object summarizing core file patterns.
+// Returns:
+// - An error if the operation fails, or nil otherwise.
 func saveComparison(comparison CoreComparison) error {
 	timestamp := time.Now().Format("20060102_150405")
 	filename := filepath.Join(outputDir, fmt.Sprintf("core_comparison_%s.%s", timestamp, formatFlag))
