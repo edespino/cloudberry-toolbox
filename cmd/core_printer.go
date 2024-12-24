@@ -21,6 +21,7 @@ package cmd
 import (
     "fmt"
     "text/tabwriter"
+    "os"
     "time"
     "path/filepath"
 )
