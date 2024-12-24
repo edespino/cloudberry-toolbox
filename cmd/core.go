@@ -35,10 +35,10 @@ Examples:
   cbtoolbox core /var/lib/postgres/cores/ --max-cores=5 --format=json
 
 Flags:
-  - `--output-dir`: Specify the directory to store analysis results (default: /var/log/postgres_cores).
-  - `--max-cores`: Limit the number of core files analyzed.
-  - `--compare`: Enable comparison of core files to identify common crash patterns.
-  - `--format`: Output format: yaml (default) or json.
+  --output-dir: Specify the directory to store analysis results (default: /var/log/postgres_cores).
+  --max-cores: Limit the number of core files analyzed.
+  --compare: Enable comparison of core files to identify common crash patterns.
+  --format: Output format: yaml (default) or json.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
