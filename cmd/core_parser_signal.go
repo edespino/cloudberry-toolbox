@@ -74,15 +74,21 @@ var signalCodeMap = map[int]map[int]string{
 func parseSignalInfo(output string) SignalInfo {
     info := SignalInfo{}
 
-    siginfoRE := regexp.MustCompile(`si_signo = (\d+).*?si_code = (\d+)`)
+    // Extract signal number and code
+    siginfoRE := regexp.MustCompile(`si_signo\s*=\s*(\d+).*?si_code\s*=\s*(\d+)`)
     if matches := siginfoRE.FindStringSubmatch(output); matches != nil {
-	info.SignalNumber = parseInt(matches[1])
-	info.SignalCode = parseInt(matches[2])
-	info.SignalName = getSignalName(info.SignalNumber)
-	info.SignalDescription = getSignalDescription(info.SignalNumber, info.SignalCode)
+        info.SignalNumber = parseInt(matches[1])
+        info.SignalCode = parseInt(matches[2])
+        info.SignalName = getSignalName(info.SignalNumber)
+        info.SignalDescription = getSignalDescription(info.SignalNumber, info.SignalCode)
     }
 
-    info.FaultInfo = parseFaultInfo(output)
+    // Parse fault address
+    if faultInfo := parseFaultInfo(output); faultInfo != nil {
+        info.FaultInfo = faultInfo
+        info.FaultAddress = faultInfo.Address
+    }
+
     return info
 }
 

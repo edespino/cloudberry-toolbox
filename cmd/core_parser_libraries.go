@@ -214,37 +214,30 @@ func getLibrarySummary(libraries []LibraryInfo) string {
     // Count by category
     counts := make(map[string]int)
     for _, lib := range libraries {
-	counts[lib.Type]++
+        counts[lib.Type]++
     }
 
     summary.WriteString("Library Summary:\n")
     for _, category := range libraryCategories {
-	if count := counts[category.Type]; count > 0 {
-	    summary.WriteString(
-		strings.Repeat(" ", 2) +
-		category.Description +
-		": " +
-		strings.Repeat(".", 20) +
-		" " +
-		strings.Repeat(" ", 3-len(fmt.Sprint(count))) +
-		fmt.Sprint(count) + "\n",
-	    )
-	}
+        if count := counts[category.Type]; count > 0 {
+            summary.WriteString(fmt.Sprintf("  %s: %d\n", category.Description, count))
+        }
     }
 
-    // Report unloaded libraries
+    // Always add unloaded libraries section if any exist
     var unloaded []string
     for _, lib := range libraries {
-	if !lib.IsLoaded {
-	    unloaded = append(unloaded, filepath.Base(lib.Name))
-	}
+        if !lib.IsLoaded {
+            unloaded = append(unloaded, filepath.Base(lib.Name))
+        }
     }
     if len(unloaded) > 0 {
-	summary.WriteString("\nUnloaded Libraries:\n")
-	for _, lib := range unloaded {
-	    summary.WriteString(strings.Repeat(" ", 2) + lib + "\n")
-	}
+        summary.WriteString("\nUnloaded Libraries:\n")
+        for _, lib := range unloaded {
+            summary.WriteString(fmt.Sprintf("  %s\n", lib))
+        }
     }
 
     return summary.String()
 }
+
