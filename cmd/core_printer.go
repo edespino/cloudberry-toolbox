@@ -140,14 +140,16 @@ func printFrameDetailed(frame StackFrame) {
 // printRegistersEnhanced organizes and prints CPU register values.
 // Parameters:
 // - registers: A map containing register names and their corresponding values.
+
 func printRegistersEnhanced(registers map[string]string) {
+    // Group registers logically
     regGroups := [][]string{
         {"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp"},
         {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"},
         {"rip", "eflags", "cs", "ss", "ds", "es", "fs", "gs"},
     }
 
-    for _, group := regGroups {
+    for _, group := range regGroups {
         for _, reg := range group {
             if val, ok := registers[reg]; ok {
                 fmt.Printf("%-8s %s\n", reg+":", val)
