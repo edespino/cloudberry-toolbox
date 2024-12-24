@@ -21,7 +21,7 @@ func saveAnalysis(analysis CoreAnalysis) error {
 
 	// Process information before saving
 	analysis.Threads = deduplicateThreads(analysis.Threads)
-	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo)
+	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo.FileOutput)
 
 	// Mark crashed threads and enhance thread info
 	for i := range analysis.Threads {

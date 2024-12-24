@@ -21,25 +21,20 @@ var coreCmd = &cobra.Command{
 	Use:   "core [core_file_or_directory]",
 	Short: "Analyze PostgreSQL core files",
 	Long: `Analyze PostgreSQL core files from Apache CloudBerry (Incubating).
-This tool provides detailed analysis of core dumps including:
+This tool provides detailed analysis of core dumps including stack traces,
+thread information, signal analysis, and shared library information.
 
-  - **Signal Mapping:** Identifies the signal causing the core dump with detailed descriptions.
-  - **Stack Trace Analysis:** Extracts and organizes stack frames for crash investigation.
-  - **Thread Inspection:** Categorizes and deduplicates threads for better debugging insights.
-  - **Shared Library Mapping:** Details on libraries loaded during execution.
-  - **CloudBerry-Specific Insights:** Highlights interconnect crashes, motion layer issues, and query executor states.
-  - **Pattern Detection:** Compares multiple core files to identify recurring issues.
-
-Examples:
+It can analyze a single core file or multiple core files in a directory:
   cbtoolbox core /path/to/core.1234
-  cbtoolbox core /var/lib/postgres/cores/ --max-cores=5 --format=json
+  cbtoolbox core /var/lib/postgres/cores/ --max-cores=5
 
-Flags:
-  --output-dir: Specify the directory to store analysis results (default: /var/log/postgres_cores).
-  --max-cores: Limit the number of core files analyzed.
-  --compare: Enable comparison of core files to identify common crash patterns.
-  --format: Output format: yaml (default) or json.
-`,
+Features:
+- Stack trace analysis
+- Thread inspection
+- Register state examination
+- Signal information
+- Shared library mapping
+- Core file comparison for pattern detection`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 {
 			return fmt.Errorf("please specify a core file or directory")
@@ -57,10 +52,6 @@ func init() {
 
 // runCoreAnalysis is the main entry point for core file analysis
 func runCoreAnalysis(path string) error {
-	if err := validateFormat(formatFlag); err != nil {
-		return err
-	}
-
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -100,6 +91,10 @@ func runCoreAnalysis(path string) error {
 				fmt.Printf("Error analyzing %s: %v\n", cf, err)
 				return
 			}
+
+			// Incorporate basic_info dynamically into analysis
+			basicInfo := parseBasicInfo(analysis.FileInfo.FileOutput)
+			analysis.BasicInfo = basicInfo
 
 			mu.Lock()
 			analyses = append(analyses, analysis)
@@ -159,3 +154,4 @@ func findCoreFiles(path string) ([]string, error) {
 
 	return coreFiles, nil
 }
+

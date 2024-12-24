@@ -19,31 +19,46 @@ var processTypes = map[string]string{
     "standby":   "Standby Master Process",
 }
 
-// parseBasicInfo extracts structured information from the core file
-func parseBasicInfo(fileInfo FileInfo) map[string]string {
-    info := make(map[string]string)
+// parseBasicInfo extracts and populates the basic_info section
+func parseBasicInfo(fileOutput string) map[string]string {
+	info := make(map[string]string)
 
-    // Parse from file output
-    if strings.Contains(fileInfo.FileOutput, "from ''") {
-	parts := strings.Split(fileInfo.FileOutput, "from ''")
-	if len(parts) > 1 {
-	    cmdline := strings.Split(parts[1], "''")[0]
-	    info["cmdline"] = cmdline
-
-	    // Parse additional process details
-	    extractProcessInfo(cmdline, info)
+	// Patterns for extracting data
+	patterns := map[string]*regexp.Regexp{
+		"database_id":    regexp.MustCompile(`postgres:\s+(\d+)`),
+		"segment_id":     regexp.MustCompile(`seg(\d+)`),
+		"connection_id":  regexp.MustCompile(`con(\d+)`),
+		"command_id":     regexp.MustCompile(`cmd(\d+)`),
+		"client_pid":     regexp.MustCompile(`\((\d+)\)`),
+		"client_address": regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`),
 	}
 
-	// Extract uid/gid information
-	extractUserInfo(fileInfo.FileOutput, info)
-    }
+	// Extract data using patterns
+	for key, re := range patterns {
+		if matches := re.FindStringSubmatch(fileOutput); matches != nil && len(matches) > 1 {
+			info[key] = matches[1]
+		} else {
+			info[key] = "N/A" // Assign a default value for missing matches
+		}
+	}
 
-    // Add core file creation time in human-readable format
-    if t, err := time.Parse(time.RFC3339, fileInfo.Created); err == nil {
-	info["core_time"] = t.Format("2006-01-02 15:04:05 MST")
-    }
+	// Extract core_time (assumed to be present in the file output as a timestamp)
+	if matches := regexp.MustCompile(`created:\s+"([\d\-:T\sZ]+)"`).FindStringSubmatch(fileOutput); matches != nil {
+		info["core_time"] = matches[1]
+	} else {
+		info["core_time"] = "N/A"
+	}
 
-    return info
+	// Additional derived fields
+	if _, ok := info["database_id"]; ok {
+		info["description"] = fmt.Sprintf(
+			"Coordinator Write (Read-Only Mode), Database %s, Segment %s, Connection %s, Client %s (PID %s)",
+			info["database_id"], info["segment_id"], info["connection_id"], info["client_address"], info["client_pid"],
+		)
+		info["process_type"] = "Coordinator Write (Read-Only Mode)"
+	}
+
+	return info
 }
 
 func extractProcessInfo(cmdline string, info map[string]string) {

@@ -36,7 +36,7 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	analysis.FileInfo.FileOutput = strings.TrimSpace(string(output))
 
 	// Parse basic info BEFORE GDB analysis
-	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo)
+	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo.FileOutput)
 
 	// Find PostgreSQL binary
 	postgresPath := filepath.Join(gphome, "bin", "postgres")
