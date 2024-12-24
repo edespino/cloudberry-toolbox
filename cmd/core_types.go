@@ -13,6 +13,8 @@ type CoreAnalysis struct {
 	SignalInfo   SignalInfo        `json:"signal_info" yaml:"signal_info"`
 	Libraries    []LibraryInfo     `json:"shared_libraries" yaml:"shared_libraries"`
 	PostgresInfo PostgresInfo      `json:"postgres_info" yaml:"postgres_info"`
+  CurrentInstruction string      `json:"current_instruction,omitempty" yaml:"current_instruction,omitempty"`
+
 }
 
 // FileInfo contains basic information about the core file
@@ -36,21 +38,27 @@ type StackFrame struct {
 
 // ThreadInfo contains information about a thread in the core file
 type ThreadInfo struct {
-	ThreadID   string       `json:"thread_id" yaml:"thread_id"`
-	LWPID      string       `json:"lwp_id" yaml:"lwp_id"`
-	Name       string       `json:"name,omitempty" yaml:"name,omitempty"`
-	State      string       `json:"state,omitempty" yaml:"state,omitempty"`
-	IsCrashed  bool         `json:"is_crashed,omitempty" yaml:"is_crashed,omitempty"`
-	Backtrace  []StackFrame `json:"backtrace" yaml:"backtrace"`
+    ThreadID    string       `json:"thread_id" yaml:"thread_id"`
+    ThreadAddr  string       `json:"thread_addr,omitempty" yaml:"thread_addr,omitempty"`
+    LWPID       string       `json:"lwp_id" yaml:"lwp_id"`
+    Name        string       `json:"name,omitempty" yaml:"name,omitempty"`
+    State       string       `json:"state,omitempty" yaml:"state,omitempty"`
+    IsCrashed   bool         `json:"is_crashed,omitempty" yaml:"is_crashed,omitempty"`
+    Backtrace   []StackFrame `json:"backtrace" yaml:"backtrace"`
 }
 
 // SignalInfo contains information about the signal that caused the core dump
 type SignalInfo struct {
-	SignalNumber      int    `json:"signal_number" yaml:"signal_number"`
-	SignalCode        int    `json:"signal_code" yaml:"signal_code"`
-	SignalName        string `json:"signal_name" yaml:"signal_name"`
-	SignalDescription string `json:"signal_description" yaml:"signal_description"`
-	FaultAddress      string `json:"fault_address,omitempty" yaml:"fault_address,omitempty"`
+  SignalNumber      int         `json:"signal_number" yaml:"signal_number"`
+  SignalCode        int         `json:"signal_code" yaml:"signal_code"`
+  SignalName        string      `json:"signal_name" yaml:"signal_name"`
+  SignalDescription string      `json:"signal_description" yaml:"signal_description"`
+  FaultAddress      string      `json:"fault_address,omitempty" yaml:"fault_address,omitempty"`
+  FaultInfo        *SignalFault `json:"fault_info,omitempty" yaml:"fault_info,omitempty"`
+  FrameInfo        *FrameInfo   `json:"frame_info,omitempty" yaml:"frame_info,omitempty"`
+  StopSignal       bool         `json:"stop_signal" yaml:"stop_signal"`
+  PrintSignal      bool         `json:"print_signal" yaml:"print_signal"`
+  PassSignal       bool         `json:"pass_signal" yaml:"pass_signal"`
 }
 
 // LibraryInfo contains information about a shared library in the core file
@@ -89,3 +97,22 @@ type CoreComparison struct {
 	CrashPatterns   []CrashPattern   `json:"crash_patterns" yaml:"crash_patterns"`
 	TimeRange       map[string]string `json:"time_range" yaml:"time_range"`
 }
+
+// Add to cmd/core_types.go:
+type SignalFault struct {
+    Address   string `json:"address" yaml:"address"`
+    AddrLsb   int    `json:"addr_lsb" yaml:"addr_lsb"`
+    LowerBnd  string `json:"lower_bound,omitempty" yaml:"lower_bound,omitempty"`
+    UpperBnd  string `json:"upper_bound,omitempty" yaml:"upper_bound,omitempty"`
+}
+
+type FrameInfo struct {
+    Level      int    `json:"level" yaml:"level"`
+    Address    string `json:"address" yaml:"address"`
+    Function   string `json:"function" yaml:"function"`
+    SavedRIP   string `json:"saved_rip" yaml:"saved_rip"`
+    CallFrame  string `json:"call_frame" yaml:"call_frame"`
+    ArglistAt  string `json:"arglist_at" yaml:"arglist_at"`
+    LocalsAt   string `json:"locals_at" yaml:"locals_at"`
+}
+

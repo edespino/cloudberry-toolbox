@@ -35,42 +35,12 @@ var threadPatterns = map[string]string{
     `(?i)logger`:         "Logger Process",
 }
 
-// parseThreads extracts thread information from GDB output
-func parseThreads(output string) []ThreadInfo {
-    var threads []ThreadInfo
-    var currentThread *ThreadInfo
-    threadRE := regexp.MustCompile(`Thread\s+(\d+)\s+\(.*?(?:LWP\s+(\d+)|Thread[^)]+)\)(?:\s*\[(.*?)\])?`)
-
-    for _, line := range strings.Split(output, "\n") {
-	if matches := threadRE.FindStringSubmatch(line); matches != nil {
-	    if currentThread != nil {
-		threads = append(threads, *currentThread)
-	    }
-
-	    currentThread = &ThreadInfo{
-		ThreadID:   matches[1],
-		LWPID:      matches[2],
-		State:      matches[3],
-		IsCrashed:  strings.Contains(line, "* "), // GDB marks crashed thread with asterisk
-	    }
-	} else if currentThread != nil && strings.HasPrefix(line, "#") {
-	    frame := parseStackFrame(line)
-	    if frame != nil {
-		currentThread.Backtrace = append(currentThread.Backtrace, *frame)
-	    }
-	}
+func parseCurrentInstruction(output string) string {
+    instRE := regexp.MustCompile(`=>\s+(0x[0-9a-f]+\s+<[^>]+>:.+)`)
+    if matches := instRE.FindStringSubmatch(output); matches != nil {
+        return matches[1]
     }
-
-    if currentThread != nil {
-	threads = append(threads, *currentThread)
-    }
-
-    // Post-process threads
-    for i := range threads {
-	threads[i] = enhanceThreadInfo(threads[i])
-    }
-
-    return deduplicateThreads(threads)
+    return ""
 }
 
 // parseStackFrame parses a single stack frame
@@ -127,46 +97,63 @@ func enhanceThreadInfo(thread ThreadInfo) ThreadInfo {
 }
 
 func determineThreadRole(backtrace []StackFrame) string {
-    // First check for signal handler
+    // Check for signal handler
     for _, frame := range backtrace {
-	if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
-	    return "Signal Handler"
-	}
+        if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
+            return "Signal Handler"
+        }
     }
 
-    // Then check backtrace functions
+    // Check backtrace functions
     if len(backtrace) > 0 {
-	switch {
-	case containsAny(backtrace[0].Function, []string{"exec", "dispatch"}):
-	    return "Query Dispatcher"
-	case containsAny(backtrace[0].Function, []string{"poll", "epoll"}):
-	    // Check for specific poll usage
-	    if len(backtrace) > 1 {
-		if strings.Contains(backtrace[1].Function, "rxThreadFunc") {
-		    return "Interconnect RX"
-		} else if strings.Contains(backtrace[1].Function, "txThreadFunc") {
-		    return "Interconnect TX"
-		}
-	    }
-	    return "Network Poller"
-	}
+        for _, frame := range backtrace {
+            if strings.Contains(frame.Function, "rxThreadFunc") {
+                return "Interconnect RX"
+            }
+            if strings.Contains(frame.Function, "txThreadFunc") {
+                return "Interconnect TX"
+            }
+            // Add other specific function checks as needed
+        }
     }
 
-    // Check for specific functions anywhere in the backtrace
-    for _, frame := range backtrace {
-	switch {
-	case strings.Contains(frame.Function, "rxThreadFunc"):
-	    return "Interconnect RX"
-	case strings.Contains(frame.Function, "txThreadFunc"):
-	    return "Interconnect TX"
-	case strings.Contains(frame.Function, "execMain"):
-	    return "Query Executor"
-	case strings.Contains(frame.Function, "BackendMain"):
-	    return "Backend Process"
-	}
+    return ""  // Return empty string if no specific role identified
+}
+
+func parseThreads(output string) []ThreadInfo {
+    var threads []ThreadInfo
+    var currentThread *ThreadInfo
+    threadRE := regexp.MustCompile(`Thread\s+(\d+)\s+(?:\(Thread\s+(?:0x[0-9a-f]+)\s+)?(?:\(LWP\s+(\d+)\))?`)
+
+    for _, line := range strings.Split(output, "\n") {
+        if matches := threadRE.FindStringSubmatch(line); matches != nil {
+            if currentThread != nil {
+                // Determine thread role based on backtrace before adding
+                currentThread.Name = determineThreadRole(currentThread.Backtrace)
+                threads = append(threads, *currentThread)
+            }
+
+            currentThread = &ThreadInfo{
+                ThreadID:   matches[1],
+                LWPID:      matches[2],
+                IsCrashed:  strings.Contains(line, "* "),
+            }
+        } else if currentThread != nil && strings.HasPrefix(line, "#") {
+            frame := parseStackFrame(line)
+            if frame != nil {
+                currentThread.Backtrace = append(currentThread.Backtrace, *frame)
+            }
+        }
     }
 
-    return "Unknown"
+    if currentThread != nil {
+        // Don't forget to process the last thread
+        currentThread.Name = determineThreadRole(currentThread.Backtrace)
+        threads = append(threads, *currentThread)
+    }
+
+    // Ensure we don't have duplicate threads
+    return deduplicateThreads(threads)
 }
 
 // getThreadSummary provides a brief summary of thread activities

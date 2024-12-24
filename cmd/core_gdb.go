@@ -129,27 +129,29 @@ func dirExists(path string) bool {
 
 // gdbAnalysis performs detailed analysis using GDB
 func gdbAnalysis(analysis *CoreAnalysis, binaryPath string) error {
-	gdbCmds := []string{
-		"set pagination off",
-		"set print pretty on",
-		"set print object on",
-		"info threads",
-		"thread apply all bt full",
-		"info registers all",
-		"info signal SIGABRT",
-		"info signal SIGSEGV",
-		"info signal SIGBUS",
-		"print $_siginfo",
-		"info sharedlibrary",
-		"x/1i $pc",
-		"info proc mappings",  // Add memory mappings
-		"thread apply all print $_thread", // Get detailed thread info
-		"print $_siginfo._sifields._sigfault", // Detailed fault info
-		"info frame",  // Detailed frame info
-		"info locals", // Local variables
-		"bt full",     // Full backtrace with locals
-		"quit",
-	}
+  gdbCmds := []string{
+      "set pagination off",
+      "set print pretty on",
+      "set print object on",
+      "info threads",
+      "thread apply all bt full",
+      "info registers all",
+      "info signal SIGABRT",
+      "info signal SIGSEGV",
+      "info signal SIGBUS",
+      "print $_siginfo",
+      "info sharedlibrary",
+      "x/1i $pc",
+      "info proc mappings",
+      "thread apply all print $_thread",
+      "print $_siginfo._sifields._sigfault",
+      "info frame",
+      "info locals",
+      "bt full",
+      "print $_siginfo.si_code",  // Add signal code information
+      "maintenance info sections", // Add memory section information
+      "quit",
+  }
 
 	// Add source directory info for better line numbers
 	if srcDir := filepath.Join(filepath.Dir(binaryPath), "../src"); dirExists(srcDir) {

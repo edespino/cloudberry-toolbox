@@ -51,77 +51,83 @@ func init() {
 }
 
 // runCoreAnalysis is the main entry point for core file analysis
+// In core.go
+
 func runCoreAnalysis(path string) error {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
+    if err := validateFormat(formatFlag); err != nil {
+        return err
+    }
 
-	// Find PostgreSQL binary
-	gphome := os.Getenv("GPHOME")
-	if gphome == "" {
-		return fmt.Errorf("GPHOME environment variable must be set")
-	}
+    if err := os.MkdirAll(outputDir, 0755); err != nil {
+        return fmt.Errorf("failed to create output directory: %w", err)
+    }
 
-	// Find core files
-	coreFiles, err := findCoreFiles(path)
-	if err != nil {
-		return err
-	}
+    // Find PostgreSQL binary
+    gphome := os.Getenv("GPHOME")
+    if gphome == "" {
+        return fmt.Errorf("GPHOME environment variable must be set")
+    }
 
-	if len(coreFiles) == 0 {
-		return fmt.Errorf("no core files found in %s", path)
-	}
+    // Find core files
+    coreFiles, err := findCoreFiles(path)
+    if err != nil {
+        return err
+    }
 
-	if maxCores > 0 && len(coreFiles) > maxCores {
-		fmt.Printf("Limiting analysis to %d most recent core files\n", maxCores)
-		coreFiles = coreFiles[:maxCores]
-	}
+    if len(coreFiles) == 0 {
+        return fmt.Errorf("no core files found in %s", path)
+    }
 
-	var analyses []CoreAnalysis
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+    if maxCores > 0 && len(coreFiles) > maxCores {
+        fmt.Printf("Limiting analysis to %d most recent core files\n", maxCores)
+        coreFiles = coreFiles[:maxCores]
+    }
 
-	// Process each core file
-	for _, coreFile := range coreFiles {
-		wg.Add(1)
-		go func(cf string) {
-			defer wg.Done()
-			analysis, err := analyzeCoreFile(cf, gphome)
-			if err != nil {
-				fmt.Printf("Error analyzing %s: %v\n", cf, err)
-				return
-			}
+    var analyses []CoreAnalysis
+    var mu sync.Mutex
+    var wg sync.WaitGroup
 
-			// Incorporate basic_info dynamically into analysis
-			basicInfo := parseBasicInfo(analysis.FileInfo.FileOutput)
-			analysis.BasicInfo = basicInfo
+    // Process each core file
+    for _, coreFile := range coreFiles {
+        wg.Add(1)
+        go func(cf string) {
+            defer wg.Done()
+            analysis, err := analyzeCoreFile(cf, gphome)
+            if err != nil {
+                fmt.Printf("Error analyzing %s: %v\n", cf, err)
+                return
+            }
 
-			mu.Lock()
-			analyses = append(analyses, analysis)
-			mu.Unlock()
+            // Incorporate basic_info dynamically into analysis
+            basicInfo := parseBasicInfo(analysis.FileInfo.FileOutput)
+            analysis.BasicInfo = basicInfo
 
-			// Save individual analysis
-			if err := saveAnalysis(analysis); err != nil {
-				fmt.Printf("Error saving analysis for %s: %v\n", cf, err)
-			}
-		}(coreFile)
-	}
+            mu.Lock()
+            analyses = append(analyses, analysis)
+            mu.Unlock()
 
-	wg.Wait()
+            // Use new saveOrPrintAnalysis function
+            if err := saveOrPrintAnalysis(analysis); err != nil {
+                fmt.Printf("Error outputting analysis for %s: %v\n", cf, err)
+            }
+        }(coreFile)
+    }
 
-	if len(analyses) == 0 {
-		return fmt.Errorf("no core files were analyzed successfully")
-	}
+    wg.Wait()
 
-	// Compare core files if requested
-	if compareFlag && len(analyses) > 1 {
-		comparison := compareCores(analyses)
-		if err := saveComparison(comparison); err != nil {
-			fmt.Printf("Error saving comparison results: %v\n", err)
-		}
-	}
+    if len(analyses) == 0 {
+        return fmt.Errorf("no core files were analyzed successfully")
+    }
 
-	return nil
+    // Compare core files if requested
+    if compareFlag && len(analyses) > 1 {
+        comparison := compareCores(analyses)
+        if err := saveComparison(comparison); err != nil {
+            fmt.Printf("Error saving comparison results: %v\n", err)
+        }
+    }
+
+    return nil
 }
 
 // findCoreFiles locates core files in the specified path
