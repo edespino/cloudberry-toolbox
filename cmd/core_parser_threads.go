@@ -126,19 +126,15 @@ func enhanceThreadInfo(thread ThreadInfo) ThreadInfo {
     return thread
 }
 
-// determineThreadRole identifies thread role from backtrace
 func determineThreadRole(backtrace []StackFrame) string {
-    // First check backtrace functions
-    callStack := parseCallStack(backtrace)
-    for _, funcName := range callStack {
-	for pattern, role := range threadPatterns {
-	    if matched, _ := regexp.MatchString(pattern, funcName); matched {
-		return role
-	    }
+    // First check for signal handler
+    for _, frame := range backtrace {
+	if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
+	    return "Signal Handler"
 	}
     }
 
-    // Analyze thread characteristics
+    // Then check backtrace functions
     if len(backtrace) > 0 {
 	switch {
 	case containsAny(backtrace[0].Function, []string{"exec", "dispatch"}):
@@ -153,8 +149,20 @@ func determineThreadRole(backtrace []StackFrame) string {
 		}
 	    }
 	    return "Network Poller"
-	case strings.Contains(backtrace[0].Function, "StandardHandlerForSigillSigsegvSigbus"):
-	    return "Signal Handler"
+	}
+    }
+
+    // Check for specific functions anywhere in the backtrace
+    for _, frame := range backtrace {
+	switch {
+	case strings.Contains(frame.Function, "rxThreadFunc"):
+	    return "Interconnect RX"
+	case strings.Contains(frame.Function, "txThreadFunc"):
+	    return "Interconnect TX"
+	case strings.Contains(frame.Function, "execMain"):
+	    return "Query Executor"
+	case strings.Contains(frame.Function, "BackendMain"):
+	    return "Backend Process"
 	}
     }
 

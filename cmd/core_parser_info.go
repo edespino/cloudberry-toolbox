@@ -46,25 +46,29 @@ func parseBasicInfo(fileInfo FileInfo) map[string]string {
     return info
 }
 
-// extractProcessInfo parses CloudBerry process details from command line
 func extractProcessInfo(cmdline string, info map[string]string) {
     // Extract basic postgres info
     if strings.HasPrefix(cmdline, "postgres:") {
-	fields := strings.Fields(cmdline)
-	for i, field := range fields {
-	    if field == "postgres:" && i+1 < len(fields) {
-		info["database_id"] = strings.TrimSuffix(fields[i+1], ",")
+	// Split on commas to handle different fields
+	parts := strings.Split(cmdline, ",")
+	for _, part := range strings.Fields(parts[0]) {
+	    if part == "postgres:" {
+		continue
 	    }
+	    info["database_id"] = strings.TrimSpace(part)
+	    break
 	}
 
 	// Process type identification
-	if strings.Contains(cmdline, "coredw") {
+	if strings.Contains(cmdline, "read_only coredw") {
+	    info["process_type"] = "Coordinator Write (Read-Only Mode)"
+	} else if strings.Contains(cmdline, "coredw") {
 	    info["process_type"] = "Coordinator Write Process"
 	} else if strings.Contains(cmdline, "corerd") {
 	    info["process_type"] = "Coordinator Read Process"
 	}
 
-	// Extract connection info using regular expressions
+	// Extract various IDs using regular expressions
 	patterns := map[string]*regexp.Regexp{
 	    "segment_id": regexp.MustCompile(`seg(\d+)`),
 	    "connection_id": regexp.MustCompile(`con(\d+)`),
@@ -79,11 +83,37 @@ func extractProcessInfo(cmdline string, info map[string]string) {
 	    }
 	}
 
-	// Extract client address
-	ipRE := regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`)
+	// Extract client address with proper handling
+	ipRE := regexp.MustCompile(`\s(\d+\.\d+\.\d+\.\d+)\s*\(`)
 	if matches := ipRE.FindStringSubmatch(cmdline); matches != nil {
 	    info["client_address"] = matches[1]
 	}
+    }
+
+    // Add description
+    var desc []string
+    if procType := info["process_type"]; procType != "" {
+	desc = append(desc, procType)
+    }
+    if dbID := info["database_id"]; dbID != "" {
+	desc = append(desc, fmt.Sprintf("Database %s", dbID))
+    }
+    if segID := info["segment_id"]; segID != "" {
+	desc = append(desc, fmt.Sprintf("Segment %s", segID))
+    }
+    if connID := info["connection_id"]; connID != "" {
+	desc = append(desc, fmt.Sprintf("Connection %s", connID))
+    }
+    if addr := info["client_address"]; addr != "" {
+	if pid := info["client_pid"]; pid != "" {
+	    desc = append(desc, fmt.Sprintf("Client %s (PID %s)", addr, pid))
+	} else {
+	    desc = append(desc, fmt.Sprintf("Client %s", addr))
+	}
+    }
+
+    if len(desc) > 0 {
+	info["description"] = strings.Join(desc, ", ")
     }
 }
 

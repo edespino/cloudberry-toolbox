@@ -35,6 +35,9 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	}
 	analysis.FileInfo.FileOutput = strings.TrimSpace(string(output))
 
+	// Parse basic info BEFORE GDB analysis
+	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo)
+
 	// Find PostgreSQL binary
 	postgresPath := filepath.Join(gphome, "bin", "postgres")
 	if _, err := os.Stat(postgresPath); err != nil {
@@ -53,16 +56,32 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 		return analysis, err
 	}
 
-	// Parse process information
-	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo)
+	// Deduplicate stack trace
+	analysis.StackTrace = deduplicateStackTrace(analysis.StackTrace)
 
 	// Enhance signal info from stack
 	detectSignalFromStack(&analysis)
 
-	// Enhance basic info
+	// Enhance basic info with thread and signal context
 	enhanceProcessInfo(analysis.BasicInfo, &analysis)
 
 	return analysis, nil
+}
+
+// deduplicateStackTrace removes duplicate stack frames
+func deduplicateStackTrace(frames []StackFrame) []StackFrame {
+	seen := make(map[string]bool)
+	var result []StackFrame
+
+	for _, frame := range frames {
+		key := fmt.Sprintf("%s:%s:%s", frame.Function, frame.Location, frame.Module)
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, frame)
+		}
+	}
+
+	return result
 }
 
 // getPostgresInfo collects PostgreSQL binary information
