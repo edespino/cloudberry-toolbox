@@ -1,8 +1,6 @@
 // File: cmd/core_parser.go
 package cmd
 
-// Update the imports section in cmd/core_parser.go
-
 import (
 	"encoding/json"
 	"fmt"
@@ -17,26 +15,105 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// deduplicateThreads removes duplicate thread entries
+func deduplicateThreads(threads []ThreadInfo) []ThreadInfo {
+	seen := make(map[string]bool)
+	var result []ThreadInfo
+
+	for _, thread := range threads {
+		if !seen[thread.ThreadID] {
+			seen[thread.ThreadID] = true
+			result = append(result, thread)
+		}
+	}
+	return result
+}
+
+// detectSignal tries harder to identify the signal from stack and other info
+func detectSignal(output string, stackTrace []StackFrame) SignalInfo {
+	info := parseSignalInfo(output)  // Start with basic signal parsing
+
+	// If no signal found but we have signal handler in stack, infer from that
+	if info.SignalNumber == 0 {
+		for _, frame := range stackTrace {
+			if strings.Contains(frame.Function, "SigillSigsegv") {
+				info.SignalNumber = 11 // SIGSEGV
+				info.SignalName = "SIGSEGV"
+				info.SignalDescription = "Segmentation fault (detected from signal handler)"
+			} else if strings.Contains(frame.Function, "Sigbus") {
+				info.SignalNumber = 7  // SIGBUS
+				info.SignalName = "SIGBUS"
+				info.SignalDescription = "Bus error (detected from signal handler)"
+			} else if strings.Contains(frame.Function, "Sigabrt") {
+				info.SignalNumber = 6  // SIGABRT
+				info.SignalName = "SIGABRT"
+				info.SignalDescription = "Abort (detected from signal handler)"
+			}
+		}
+	}
+
+	// Try to provide more context about what happened
+	if info.SignalNumber == 11 {  // SIGSEGV
+		for _, frame := range stackTrace {
+			if strings.Contains(frame.Function, "rxThreadFunc") {
+				info.SignalDescription += "\nCrash occurred in interconnect receive thread"
+			}
+		}
+	}
+
+	return info
+}
+
 // determineThreadRole identifies PostgreSQL thread roles
 func determineThreadRole(threadInfo string) string {
 	patterns := map[string]string{
-		`(?i)postmaster`:   "Postmaster",
-		`(?i)bgwriter`:     "Background Writer",
-		`(?i)checkpointer`: "Checkpointer",
-		`(?i)walwriter`:    "WAL Writer",
-		`(?i)autovacuum`:   "Autovacuum Worker",
-		`(?i)stats`:        "Stats Collector",
-		`(?i)launcher`:     "AV Launcher",
-		`(?i)seqserver`:    "Sequence Server",
-		`(?i)ftsprobe`:     "FTS Probe",
+		`(?i)postmaster`:     "Postmaster",
+		`(?i)bgwriter`:       "Background Writer",
+		`(?i)checkpointer`:   "Checkpointer",
+		`(?i)walwriter`:      "WAL Writer",
+		`(?i)autovacuum`:     "Autovacuum Worker",
+		`(?i)stats`:          "Stats Collector",
+		`(?i)launcher`:       "AV Launcher",
+		`(?i)rxThreadFunc`:   "Interconnect RX",
+		`(?i)executor`:       "Query Executor",
+		`(?i)cdbgang`:        "Gang Worker",
+		`(?i)distributor`:    "Motion Node",
+		`(?i)fts`:           "FTS Probe",
+		`(?i)ftsprobe`:      "FTS Probe",
+		`(?i)rg_worker`:     "Resource Group Worker",
+		`(?i)seqserver`:     "Sequence Server",
 	}
 
+	// First try function name-based detection
+	for _, frame := range getVisibleFrames(threadInfo) {
+		for pattern, role := range patterns {
+			if matched, _ := regexp.MatchString(pattern, frame); matched {
+				return role
+			}
+		}
+	}
+
+	// Then try thread name/description
 	for pattern, role := range patterns {
 		if matched, _ := regexp.MatchString(pattern, threadInfo); matched {
 			return role
 		}
 	}
+
 	return "Unknown"
+}
+
+// getVisibleFrames extracts function names from a thread's backtrace text
+func getVisibleFrames(threadInfo string) []string {
+	var frames []string
+	for _, line := range strings.Split(threadInfo, "\n") {
+		if strings.Contains(line, "in ") {
+			if parts := strings.Split(line, "in "); len(parts) > 1 {
+				frames = append(frames, strings.TrimSpace(parts[1]))
+			}
+		}
+	}
+	return frames
 }
 
 // parseThreads extracts thread information from GDB output
@@ -287,57 +364,7 @@ func parseInt(s string) int {
 	return n
 }
 
-// saveAnalysis saves analysis results to a file
-func saveAnalysis(analysis CoreAnalysis) error {
-	timestamp := time.Now().Format("20060102_150405")
-	filename := filepath.Join(outputDir, fmt.Sprintf("core_analysis_%s.%s", timestamp, formatFlag))
-
-	var data []byte
-	var err error
-	if formatFlag == "json" {
-		data, err = json.MarshalIndent(analysis, "", "  ")
-	} else {
-		data, err = yaml.Marshal(analysis)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to marshal analysis: %w", err)
-	}
-
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write analysis file: %w", err)
-	}
-
-	fmt.Printf("Analysis saved to: %s\n", filename)
-	return nil
-}
-
-// saveComparison saves comparison results to a file
-func saveComparison(comparison CoreComparison) error {
-	timestamp := time.Now().Format("20060102_150405")
-	filename := filepath.Join(outputDir, fmt.Sprintf("core_comparison_%s.%s", timestamp, formatFlag))
-
-	var data []byte
-	var err error
-	if formatFlag == "json" {
-		data, err = json.MarshalIndent(comparison, "", "  ")
-	} else {
-		data, err = yaml.Marshal(comparison)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to marshal comparison: %w", err)
-	}
-
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write comparison file: %w", err)
-	}
-
-	fmt.Printf("Comparison results saved to: %s\n", filename)
-	return nil
-}
-
-// Add this function to cmd/core_parser.go
-
-// compareCores analyzes multiple core files to identify patterns
+// comparePatterns compares core files for similarities
 func compareCores(analyses []CoreAnalysis) CoreComparison {
 	comparison := CoreComparison{
 		TotalCores:      len(analyses),
@@ -387,9 +414,10 @@ func compareCores(analyses []CoreAnalysis) CoreComparison {
 		if len(group) > 1 { // Only include patterns that occur multiple times
 			parts := strings.Split(signature, "|")
 			pattern := CrashPattern{
-				Signal:         parts[0],
-				StackSignature: parts[1:],
-				OccurrenceCount: len(group),
+				Signal:            parts[0],
+				StackSignature:    parts[1:],
+				OccurrenceCount:   len(group),
+				AffectedCoreFiles: make([]string, 0, len(group)),
 			}
 			for _, analysis := range group {
 				pattern.AffectedCoreFiles = append(pattern.AffectedCoreFiles, analysis.CoreFile)
@@ -406,7 +434,78 @@ func compareCores(analyses []CoreAnalysis) CoreComparison {
 	return comparison
 }
 
-// Add this function to cmd/core_parser.go
+// saveAnalysis saves analysis results to a file
+func saveAnalysis(analysis CoreAnalysis) error {
+	timestamp := time.Now().Format("20060102_150405")
+	filename := filepath.Join(outputDir, fmt.Sprintf("core_analysis_%s.%s", timestamp, formatFlag))
+
+	// Deduplicate threads before saving
+	analysis.Threads = deduplicateThreads(analysis.Threads)
+
+	// Process cmdline information from core file info
+	if analysis.BasicInfo == nil {
+		analysis.BasicInfo = make(map[string]string)
+	}
+	if strings.Contains(analysis.FileInfo.FileOutput, "from ''") {
+		parts := strings.Split(analysis.FileInfo.FileOutput, "from ''")
+		if len(parts) > 1 {
+			cmdline := strings.Split(parts[1], "''")[0]
+			analysis.BasicInfo["cmdline"] = cmdline
+		}
+	}
+
+	// Mark crashed threads
+	for i := range analysis.Threads {
+		for _, frame := range analysis.Threads[i].Backtrace {
+			if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
+				analysis.Threads[i].IsCrashed = true
+				break
+			}
+		}
+	}
+
+	var data []byte
+	var err error
+	if formatFlag == "json" {
+		data, err = json.MarshalIndent(analysis, "", "  ")
+	} else {
+		data, err = yaml.Marshal(analysis)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to marshal analysis: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write analysis file: %w", err)
+	}
+
+	fmt.Printf("Analysis saved to: %s\n", filename)
+	return nil
+}
+
+// saveComparison saves comparison results to a file
+func saveComparison(comparison CoreComparison) error {
+	timestamp := time.Now().Format("20060102_150405")
+	filename := filepath.Join(outputDir, fmt.Sprintf("core_comparison_%s.%s", timestamp, formatFlag))
+
+	var data []byte
+	var err error
+	if formatFlag == "json" {
+		data, err = json.MarshalIndent(comparison, "", "  ")
+	} else {
+		data, err = yaml.Marshal(comparison)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to marshal comparison: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write comparison file: %w", err)
+	}
+
+	fmt.Printf("Comparison results saved to: %s\n", filename)
+	return nil
+}
 
 // parseStackTrace extracts stack trace information from GDB output
 func parseStackTrace(output string) []StackFrame {
