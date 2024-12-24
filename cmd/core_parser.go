@@ -1,12 +1,15 @@
 // File: cmd/core_parser.go
 package cmd
 
+// Update the imports section in cmd/core_parser.go
+
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -330,4 +333,124 @@ func saveComparison(comparison CoreComparison) error {
 
 	fmt.Printf("Comparison results saved to: %s\n", filename)
 	return nil
+}
+
+// Add this function to cmd/core_parser.go
+
+// compareCores analyzes multiple core files to identify patterns
+func compareCores(analyses []CoreAnalysis) CoreComparison {
+	comparison := CoreComparison{
+		TotalCores:      len(analyses),
+		CommonSignals:   make(map[string]int),
+		CommonFunctions: make(map[string]int),
+		TimeRange:       make(map[string]string),
+	}
+
+	// Track time range
+	var firstTime, lastTime time.Time
+	for i, analysis := range analyses {
+		t, _ := time.Parse(time.RFC3339, analysis.Timestamp)
+		if i == 0 || t.Before(firstTime) {
+			firstTime = t
+		}
+		if i == 0 || t.After(lastTime) {
+			lastTime = t
+		}
+	}
+	comparison.TimeRange["first"] = firstTime.Format(time.RFC3339)
+	comparison.TimeRange["last"] = lastTime.Format(time.RFC3339)
+
+	// Collect signal and function distributions
+	crashGroups := make(map[string][]CoreAnalysis)
+	for _, analysis := range analyses {
+		signal := analysis.SignalInfo.SignalName
+		comparison.CommonSignals[signal]++
+
+		// Count functions in stack traces
+		for _, frame := range analysis.StackTrace {
+			comparison.CommonFunctions[frame.Function]++
+		}
+
+		// Create crash signature
+		var signature strings.Builder
+		signature.WriteString(signal)
+		for i, frame := range analysis.StackTrace {
+			if i < 3 { // Use top 3 frames for signature
+				signature.WriteString("|" + frame.Function)
+			}
+		}
+		crashGroups[signature.String()] = append(crashGroups[signature.String()], analysis)
+	}
+
+	// Generate crash patterns
+	for signature, group := range crashGroups {
+		if len(group) > 1 { // Only include patterns that occur multiple times
+			parts := strings.Split(signature, "|")
+			pattern := CrashPattern{
+				Signal:         parts[0],
+				StackSignature: parts[1:],
+				OccurrenceCount: len(group),
+			}
+			for _, analysis := range group {
+				pattern.AffectedCoreFiles = append(pattern.AffectedCoreFiles, analysis.CoreFile)
+			}
+			comparison.CrashPatterns = append(comparison.CrashPatterns, pattern)
+		}
+	}
+
+	// Sort patterns by occurrence count
+	sort.Slice(comparison.CrashPatterns, func(i, j int) bool {
+		return comparison.CrashPatterns[i].OccurrenceCount > comparison.CrashPatterns[j].OccurrenceCount
+	})
+
+	return comparison
+}
+
+// Add this function to cmd/core_parser.go
+
+// parseStackTrace extracts stack trace information from GDB output
+func parseStackTrace(output string) []StackFrame {
+	var frames []StackFrame
+	stackRE := regexp.MustCompile(`#(\d+)\s+([^in]+)in\s+(\S+)\s*\(([^)]*)\)`)
+
+	inStackTrace := false
+	for _, line := range strings.Split(output, "\n") {
+		// Look for the start of a stack trace
+		if strings.HasPrefix(line, "Thread") {
+			inStackTrace = true
+			continue
+		}
+
+		// Process frames while in a stack trace
+		if inStackTrace && strings.HasPrefix(line, "#") {
+			if matches := stackRE.FindStringSubmatch(line); matches != nil {
+				frame := StackFrame{
+					FrameNum:  matches[1],
+					Location:  strings.TrimSpace(matches[2]),
+					Function:  matches[3],
+					Arguments: matches[4],
+				}
+
+				// Try to get source file and line number
+				if srcMatch := regexp.MustCompile(`at ([^:]+):(\d+)`).FindStringSubmatch(line); srcMatch != nil {
+					frame.SourceFile = srcMatch[1]
+					frame.LineNumber, _ = strconv.Atoi(srcMatch[2])
+				}
+
+				// Try to get module name
+				if modMatch := regexp.MustCompile(`from ([^)]+)`).FindStringSubmatch(line); modMatch != nil {
+					frame.Module = filepath.Base(modMatch[1])
+				}
+
+				frames = append(frames, frame)
+			}
+		}
+
+		// End of stack trace
+		if inStackTrace && line == "" {
+			inStackTrace = false
+		}
+	}
+
+	return frames
 }
