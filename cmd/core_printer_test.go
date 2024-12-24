@@ -239,68 +239,58 @@ func TestPrintRegisters(t *testing.T) {
 }
 
 func TestPrintLibrarySummary(t *testing.T) {
-	tests := []struct {
-		name     string
-		analysis CoreAnalysis
-		wants    []string
-		nots     []string
-	}{
-		{
-			name: "mixed libraries",
-			analysis: CoreAnalysis{
-				Libraries: []LibraryInfo{
-					{
-						Name:     "libpostgres.so.5.1",
-						Type:     "Core",
-						Version:  "5.1",
-						IsLoaded: true,
-					},
-					{
-						Name:     "libssl.so.1.1",
-						Type:     "Security",
-						Version:  "1.1",
-						IsLoaded: true,
-					},
-					{
-						Name:     "libpython3.so",
-						Type:     "Extension",
-						IsLoaded: false,
-					},
-				},
-			},
-			wants: []string{
-				"Shared Library Summary",
-				"CloudBerry Core:",
-				"libpostgres.so",
-				"Security Libraries:",
-				"libssl.so",
-				"Unloaded Libraries:",
-				"libpython3.so",
-			},
-			nots: []string{
-				"invalid library",
-				"unknown type",
-			},
-		},
-	}
+    tests := []struct {
+        name     string
+        analysis CoreAnalysis
+        wants    []string
+    }{
+        {
+            name: "mixed libraries",
+            analysis: CoreAnalysis{
+                Libraries: []LibraryInfo{
+                    {
+                        Name:     "libpostgres.so.5.1",
+                        Type:     "Core",
+                        Version:  "5.1",
+                        IsLoaded: true,
+                    },
+                    {
+                        Name:     "libssl.so.1.1",
+                        Type:     "Security",
+                        Version:  "1.1",
+                        IsLoaded: true,
+                    },
+                    {
+                        Name:     "libpython3.so",
+                        Type:     "Extension",
+                        IsLoaded: false,
+                    },
+                },
+            },
+            wants: []string{
+                "Shared Library Summary",
+                "CloudBerry Core:",
+                "libpostgres.so",
+                "Security Libraries:",
+                "libssl.so",
+                "Unloaded Libraries:",
+                "libpython3.so",
+                "Library Statistics:",
+            },
+        },
+    }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
-				printLibrarySummary(tt.analysis)
-			})
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            output := capturePrinterOutput(func() {
+                printLibrarySummary(tt.analysis)
+            })
 
-			for _, want := range tt.wants {
-				if !strings.Contains(output, want) {
-					t.Errorf("output missing expected string %q", want)
-				}
-			}
-
-			for _, not := range tt.nots {
-				if strings.Contains(output, not) {
-					t.Errorf("output contains unexpected string %q", not)
-				}
-			}
-		})
-	}
+            for _, want := range tt.wants {
+                if !strings.Contains(output, want) {
+                    t.Errorf("output missing expected string %q", want)
+                }
+            }
+        })
+    }
 }

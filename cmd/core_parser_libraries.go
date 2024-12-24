@@ -124,17 +124,23 @@ func categorizeLibrary(path string) string {
 // - libPath: The file path of the library.
 // Returns:
 // - A string representing the library version, if found; otherwise, an empty string.
+// In core_parser_libraries.go
+
 func getLibraryVersion(libPath string) string {
-    verMatch := regexp.MustCompile(`\.so[.]([0-9.]+)$`).FindStringSubmatch(libPath)
-    if verMatch != nil {
-	return verMatch[1]
+    patterns := []struct {
+        pattern string
+        index   int
+    }{
+        {`\.so[.]([0-9][0-9.a-zA-Z-]+)`, 1},  // matches libcrypto.so.1.1.1f
+        {`-([0-9][0-9.]+)\.so`, 1},           // matches libboost_system-mt-1.74.so
     }
 
-    parts := strings.Split(filepath.Base(libPath), "-")
-    for _, part := range parts {
-	if regexp.MustCompile(`^[0-9.]+$`).MatchString(part) {
-	    return part
-	}
+    for _, p := range patterns {
+        if matches := regexp.MustCompile(p.pattern).FindStringSubmatch(libPath); matches != nil {
+            if len(matches) > p.index {
+                return matches[p.index]
+            }
+        }
     }
 
     return ""

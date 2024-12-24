@@ -8,80 +8,89 @@ import (
 )
 
 func TestParseSignalInfo(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected SignalInfo
-	}{
-		{
-			name: "SIGSEGV basic",
-			input: `si_signo = 11
-si_code = 1
-si_addr = 0x0000000000000000`,
-			expected: SignalInfo{
-				SignalNumber:      11,
-				SignalCode:        1,
-				SignalName:        "SIGSEGV",
-				SignalDescription: "Segmentation fault - SEGV_MAPERR (Address not mapped to object)",
-			},
-		},
-		{
-			name: "SIGABRT with fault info",
-			input: `si_signo = 6
-si_code = 0
+   tests := []struct {
+       name     string
+       input    string
+       expected SignalInfo
+   }{
+       {
+           name: "SIGSEGV basic",
+           input: `si_signo = 11, si_code = 1
+si_addr = 0x0000000000000000`, 
+           expected: SignalInfo{
+               SignalNumber: 11,
+               SignalCode: 1,
+               SignalName: "SIGSEGV",
+               SignalDescription: "Segmentation fault - SEGV_MAPERR (Address not mapped to object)",
+               FaultInfo: &SignalFault{
+                   Address: "0x0000000000000000",
+               },
+               FaultAddress: "0x0000000000000000",
+           },
+       },
+       {
+           name: "SIGABRT with fault info",
+           input: `si_signo = 6, si_code = 0
 _sigfault = {si_addr = 0x00007f8b4c37c425}`,
-			expected: SignalInfo{
-				SignalNumber:      6,
-				SignalCode:        0,
-				SignalName:        "SIGABRT",
-				SignalDescription: "Process abort signal (possibly assertion failure)",
-				FaultInfo: &SignalFault{
-					Address: "0x00007f8b4c37c425",
-				},
-			},
-		},
-		{
-			name: "SIGBUS with code",
-			input: `si_signo = 7
-si_code = 2
+           expected: SignalInfo{
+               SignalNumber: 6,
+               SignalCode: 0,
+               SignalName: "SIGABRT", 
+               SignalDescription: "Process abort signal (possibly assertion failure)",
+               FaultInfo: &SignalFault{
+                   Address: "0x00007f8b4c37c425",
+               },
+               FaultAddress: "0x00007f8b4c37c425",
+           },
+       },
+       {
+           name: "SIGBUS with code", 
+           input: `si_signo = 7, si_code = 2
 _sigfault = {si_addr = 0x00007ffff7ff1000}`,
-			expected: SignalInfo{
-				SignalNumber:      7,
-				SignalCode:        2,
-				SignalName:        "SIGBUS",
-				SignalDescription: "Bus error - BUS_ADRERR (Nonexistent physical address)",
-				FaultInfo: &SignalFault{
-					Address: "0x00007ffff7ff1000",
-				},
-			},
-		},
-		{
-			name: "Empty input",
-			input: "",
-			expected: SignalInfo{},
-		},
-	}
+           expected: SignalInfo{
+               SignalNumber: 7,
+               SignalCode: 2,
+               SignalName: "SIGBUS",
+               SignalDescription: "Bus error - BUS_ADRERR (Nonexistent physical address)",
+               FaultInfo: &SignalFault{
+                   Address: "0x00007ffff7ff1000",
+               },
+               FaultAddress: "0x00007ffff7ff1000",
+           },
+       },
+       {
+           name: "Empty input",
+           input: "",
+           expected: SignalInfo{},
+       },
+   }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseSignalInfo(tt.input)
-			
-			// Compare relevant fields
-			if result.SignalNumber != tt.expected.SignalNumber {
-				t.Errorf("SignalNumber = %d, want %d", result.SignalNumber, tt.expected.SignalNumber)
-			}
-			if result.SignalCode != tt.expected.SignalCode {
-				t.Errorf("SignalCode = %d, want %d", result.SignalCode, tt.expected.SignalCode)
-			}
-			if result.SignalName != tt.expected.SignalName {
-				t.Errorf("SignalName = %s, want %s", result.SignalName, tt.expected.SignalName)
-			}
-			if !strings.Contains(result.SignalDescription, tt.expected.SignalDescription) {
-				t.Errorf("SignalDescription = %s, should contain %s", 
-					result.SignalDescription, tt.expected.SignalDescription)
-			}
-		})
-	}
+   for _, tt := range tests {
+       t.Run(tt.name, func(t *testing.T) {
+           result := parseSignalInfo(tt.input)
+           
+           // Compare fields
+           if result.SignalNumber != tt.expected.SignalNumber {
+               t.Errorf("SignalNumber = %d, want %d", result.SignalNumber, tt.expected.SignalNumber)
+           }
+           if result.SignalCode != tt.expected.SignalCode {
+               t.Errorf("SignalCode = %d, want %d", result.SignalCode, tt.expected.SignalCode)
+           }
+           if result.SignalName != tt.expected.SignalName {
+               t.Errorf("SignalName = %s, want %s", result.SignalName, tt.expected.SignalName)
+           }
+           if !strings.Contains(result.SignalDescription, tt.expected.SignalDescription) {
+               t.Errorf("SignalDescription = %s, should contain %s", 
+                   result.SignalDescription, tt.expected.SignalDescription)
+           }
+           if !reflect.DeepEqual(result.FaultInfo, tt.expected.FaultInfo) {
+               t.Errorf("FaultInfo = %+v, want %+v", result.FaultInfo, tt.expected.FaultInfo)
+           }
+           if result.FaultAddress != tt.expected.FaultAddress {
+               t.Errorf("FaultAddress = %s, want %s", result.FaultAddress, tt.expected.FaultAddress) 
+           }
+       })
+   }
 }
 
 func TestGetSignalName(t *testing.T) {

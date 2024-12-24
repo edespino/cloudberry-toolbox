@@ -75,7 +75,7 @@ func parseSignalInfo(output string) SignalInfo {
     info := SignalInfo{}
 
     // Extract signal number and code
-    siginfoRE := regexp.MustCompile(`si_signo\s*=\s*(\d+).*?si_code\s*=\s*(\d+)`)
+    siginfoRE := regexp.MustCompile(`si_signo\s*=\s*(\d+)[\s,]*si_code\s*=\s*(\d+)`)
     if matches := siginfoRE.FindStringSubmatch(output); matches != nil {
         info.SignalNumber = parseInt(matches[1])
         info.SignalCode = parseInt(matches[2])
@@ -83,10 +83,11 @@ func parseSignalInfo(output string) SignalInfo {
         info.SignalDescription = getSignalDescription(info.SignalNumber, info.SignalCode)
     }
 
-    // Parse fault address
-    if faultInfo := parseFaultInfo(output); faultInfo != nil {
-        info.FaultInfo = faultInfo
-        info.FaultAddress = faultInfo.Address
+    // Parse fault address from direct si_addr or _sigfault
+    faultAddrRE := regexp.MustCompile(`(?:si_addr|_sigfault = {si_addr) = (0x[0-9a-fA-F]+)`)
+    if matches := faultAddrRE.FindStringSubmatch(output); matches != nil {
+        info.FaultInfo = &SignalFault{Address: matches[1]}
+        info.FaultAddress = matches[1]
     }
 
     return info
@@ -265,11 +266,11 @@ func detectSignalFromStack(analysis *CoreAnalysis) {
 // Returns:
 // - A SignalFault object with extracted details.
 func parseFaultInfo(output string) *SignalFault {
-    sigFaultRE := regexp.MustCompile(`_sigfault\s*=\s*{[^}]*si_addr\s*=\s*(0x[0-9a-fA-F]+)`)
-    if matches := sigFaultRE.FindStringSubmatch(output); matches != nil {
-	return &SignalFault{
-	    Address: matches[1],
-	}
+    faultAddrRE := regexp.MustCompile(`(?:si_addr|_sigfault = {si_addr) = (0x[0-9a-fA-F]+)`)
+    if matches := faultAddrRE.FindStringSubmatch(output); matches != nil {
+        return &SignalFault{
+            Address: matches[1],
+        }
     }
     return nil
 }

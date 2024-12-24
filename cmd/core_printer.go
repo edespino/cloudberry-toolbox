@@ -335,6 +335,20 @@ func printLibrarySummary(analysis CoreAnalysis) {
     printLibraryGroup("Security Libraries", typeGroups["Security"])
     printLibraryGroup("Runtime Libraries", typeGroups["Runtime"])
     
+    // Print unloaded libraries section
+    var unloaded []LibraryInfo
+    for _, lib := range analysis.Libraries {
+        if !lib.IsLoaded {
+            unloaded = append(unloaded, lib)
+        }
+    }
+    if len(unloaded) > 0 {
+        fmt.Println("\nUnloaded Libraries:")
+        for _, lib := range unloaded {
+            fmt.Printf("  %s\n", filepath.Base(lib.Name))
+        }
+    }
+    
     // Print summary counts
     fmt.Println("\nLibrary Statistics:")
     for libType, libs := range typeGroups {
