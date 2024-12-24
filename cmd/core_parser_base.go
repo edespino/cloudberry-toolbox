@@ -5,7 +5,6 @@ package cmd
 import (
     "strconv"
     "strings"
-    "regexp"
 )
 
 // parseInt safely converts string to int
@@ -140,4 +139,21 @@ func isSystemFunction(funcName string) bool {
     }
 
     return false
+}
+
+// parseRegisters extracts register information from GDB output
+func parseRegisters(output string) map[string]string {
+    registers := make(map[string]string)
+    regPattern := `^([re][a-z][a-z]|r\d+|[cdefgs]s|[re]ip|[re]flags)\s+(.+)`
+
+    for _, line := range strings.Split(output, "\n") {
+	// Use strings functions instead of regexp for better performance
+	if strings.HasPrefix(line, "r") || strings.HasPrefix(line, "e") {
+	    parts := strings.Fields(line)
+	    if len(parts) >= 2 {
+		registers[parts[0]] = strings.Join(parts[1:], " ")
+	    }
+	}
+    }
+    return registers
 }
