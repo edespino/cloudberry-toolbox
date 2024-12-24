@@ -194,10 +194,10 @@ func extractUserInfo(output string, info map[string]string) {
 	pattern string
 	key     string
     }{
-	{'real uid: (\d+)', "real_uid"},
-	{'effective uid: (\\d+)', "effective_uid"},
-	{'real gid: (\\d+)', "real_gid"},
-	{'effective gid: (\\d+)', "effective_gid"},
+	{`real uid: (\d+)`, "real_uid"},
+	{`effective uid: (\d+)`, "effective_uid"},
+	{`real gid: (\d+)`, "real_gid"},
+	{`effective gid: (\d+)`, "effective_gid"},
     }
 
     for _, p := range patterns {
