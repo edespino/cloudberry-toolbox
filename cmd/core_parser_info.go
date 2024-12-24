@@ -57,37 +57,80 @@ func extractProcessInfo(cmdline string, info map[string]string) {
 	    }
 	}
 
-	// Parse process type
-	for procType, desc := range processTypes {
-	    if strings.Contains(cmdline, procType) {
-		info["process_type"] = desc
-		break
-	    }
+	// Process type identification
+	if strings.Contains(cmdline, "coredw") {
+	    info["process_type"] = "Coordinator Write Process"
+	} else if strings.Contains(cmdline, "corerd") {
+	    info["process_type"] = "Coordinator Read Process"
 	}
 
-	// Extract connection info
-	patterns := map[string]string{
-	    `seg(\d+)`:     "segment_id",
-	    `con(\d+)`:     "connection_id",
-	    `cmd(\d+)`:     "command_id",
-	    `slice(\d+)`:   "slice_id",
-	    `(\d+\.\d+\.\d+\.\d+)`: "client_addr",
+	// Extract connection info using regular expressions
+	patterns := map[string]*regexp.Regexp{
+	    "segment_id": regexp.MustCompile(`seg(\d+)`),
+	    "connection_id": regexp.MustCompile(`con(\d+)`),
+	    "command_id": regexp.MustCompile(`cmd(\d+)`),
+	    "slice_id": regexp.MustCompile(`slice(\d+)`),
+	    "client_pid": regexp.MustCompile(`\((\d+)\)`),
 	}
 
-	for pattern, key := range patterns {
-	    re := regexp.MustCompile(pattern)
+	for key, re := range patterns {
 	    if matches := re.FindStringSubmatch(cmdline); matches != nil {
 		info[key] = matches[1]
 	    }
 	}
 
-	// Extract transaction info if present
-	if strings.Contains(cmdline, "xact") {
-	    xactRE := regexp.MustCompile(`xact[^\s]*\s+(\d+)`)
-	    if matches := xactRE.FindStringSubmatch(cmdline); matches != nil {
-		info["transaction_id"] = matches[1]
-	    }
+	// Extract client address
+	ipRE := regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`)
+	if matches := ipRE.FindStringSubmatch(cmdline); matches != nil {
+	    info["client_address"] = matches[1]
 	}
+    }
+}
+
+// enhanceProcessInfo adds additional context to the basic info
+func enhanceProcessInfo(info map[string]string, analysis *CoreAnalysis) {
+    // Add timestamp in human-readable format
+    if t, err := time.Parse(time.RFC3339, analysis.Timestamp); err == nil {
+	info["analysis_time"] = t.Format("2006-01-02 15:04:05 MST")
+    }
+
+    // Enhance process description
+    var description []string
+    if procType := info["process_type"]; procType != "" {
+	description = append(description, procType)
+    }
+    if dbID := info["database_id"]; dbID != "" {
+	description = append(description, fmt.Sprintf("DB %s", dbID))
+    }
+    if segID := info["segment_id"]; segID != "" {
+	description = append(description, fmt.Sprintf("segment %s", segID))
+    }
+    if address := info["client_address"]; address != "" {
+	if pid := info["client_pid"]; pid != "" {
+	    description = append(description, fmt.Sprintf("client %s (pid %s)", address, pid))
+	} else {
+	    description = append(description, fmt.Sprintf("client %s", address))
+	}
+    }
+    if len(description) > 0 {
+	info["process_description"] = strings.Join(description, ", ")
+    }
+
+    // Add thread summary
+    threadCount := make(map[string]int)
+    for _, thread := range analysis.Threads {
+	threadCount[thread.Name]++
+    }
+    var threadSummary []string
+    for name, count := range threadCount {
+	if count > 1 {
+	    threadSummary = append(threadSummary, fmt.Sprintf("%dx %s", count, name))
+	} else {
+	    threadSummary = append(threadSummary, name)
+	}
+    }
+    if len(threadSummary) > 0 {
+	info["thread_summary"] = strings.Join(threadSummary, ", ")
     }
 }
 

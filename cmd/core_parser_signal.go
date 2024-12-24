@@ -209,3 +209,31 @@ func addCloudBerryContext(info *SignalInfo, analysis *CoreAnalysis) {
 	}
     }
 }
+
+// Add to cmd/core_parser_signal.go
+
+func detectSignalFromStack(analysis *CoreAnalysis) {
+    for _, thread := range analysis.Threads {
+	for _, frame := range thread.Backtrace {
+	    if strings.Contains(frame.Function, "SigillSigsegvSigbus") {
+		analysis.SignalInfo.SignalNumber = 11 // SIGSEGV
+		analysis.SignalInfo.SignalName = "SIGSEGV"
+		analysis.SignalInfo.SignalDescription = "Segmentation fault"
+
+		// Find the crashing thread (not signal handler)
+		for _, t := range analysis.Threads {
+		    if !t.IsCrashed && len(t.Backtrace) > 0 {
+			if keyFunc := findKeyFunction(t.Backtrace); keyFunc != "" {
+			    analysis.SignalInfo.SignalDescription = fmt.Sprintf(
+				"Segmentation fault in %s (thread: %s)",
+				keyFunc,
+				t.Name,
+			    )
+			    break
+			}
+		    }
+		}
+	    }
+	}
+    }
+}

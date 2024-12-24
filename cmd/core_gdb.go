@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// analyzeCoreFile performs detailed analysis of a single core file
 func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	analysis := CoreAnalysis{
 		Timestamp: time.Now().Format(time.RFC3339),
@@ -53,6 +52,15 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	if err := gdbAnalysis(&analysis, postgresPath); err != nil {
 		return analysis, err
 	}
+
+	// Parse process information
+	analysis.BasicInfo = parseBasicInfo(analysis.FileInfo)
+
+	// Enhance signal info from stack
+	detectSignalFromStack(&analysis)
+
+	// Enhance basic info
+	enhanceProcessInfo(analysis.BasicInfo, &analysis)
 
 	return analysis, nil
 }
