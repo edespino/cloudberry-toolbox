@@ -279,7 +279,7 @@ func TestRunCoreAnalysis(t *testing.T) {
 		Outputs: []string{
 			"core file", // file command output
 			"PostgreSQL 14.2", // postgres --version
-			"CloudBerry 1.0.0", // postgres --gp-version
+			"Cloudberry 1.0.0", // postgres --gp-version
 			"--with-openssl", // pg_config output
 			"Thread 1", // gdb output
 		},

@@ -191,7 +191,7 @@ func TestAnalyzeLibraries(t *testing.T) {
 		t.Errorf("unloaded_libraries = %v, want [/usr/lib/libssl.so.1.1]", unloaded)
 	}
 
-	// Check CloudBerry components
+	// Check Cloudberry components
 	components, ok := result["cloudberry_components"].(map[string][]string)
 	if !ok {
 		t.Fatal("cloudberry_components not found or wrong type")
@@ -269,7 +269,7 @@ func TestGetLibrarySummary(t *testing.T) {
 	if !strings.Contains(summary, "Library Summary:") {
 		t.Error("Summary missing header")
 	}
-	if !strings.Contains(summary, "CloudBerry Core Libraries") {
+	if !strings.Contains(summary, "Cloudberry Core Libraries") {
 		t.Error("Summary missing core libraries section")
 	}
 	if !strings.Contains(summary, "Unloaded Libraries:") {

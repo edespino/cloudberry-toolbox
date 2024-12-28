@@ -13,7 +13,7 @@
 // File: cmd/core_parser_signal.go
 // Purpose: Provides utilities for parsing and analyzing signal information from GDB output.
 // Includes functions to extract signal details, add contextual information, and enhance
-// the understanding of signal-related crashes in CloudBerry processes.
+// the understanding of signal-related crashes in Cloudberry processes.
 // Dependencies: Uses Go's standard libraries for string manipulation, regex, and formatting.
 
 package cmd
@@ -176,7 +176,7 @@ func enhanceSignalInfo(info *SignalInfo, analysis *CoreAnalysis) {
 	}
     }
 
-    addCloudBerryContext(info, analysis)
+    addCloudberryContext(info, analysis)
 }
 
 // addFaultAddressContext adds fault address-related details to the signal description.
@@ -203,11 +203,11 @@ func addFaultAddressContext(info *SignalInfo, analysis *CoreAnalysis) {
     }
 }
 
-// addCloudBerryContext adds context specific to CloudBerry processes.
+// addCloudberryContext adds context specific to Cloudberry processes.
 // Parameters:
 // - info: A pointer to the SignalInfo object.
 // - analysis: A CoreAnalysis object containing process and thread details.
-func addCloudBerryContext(info *SignalInfo, analysis *CoreAnalysis) {
+func addCloudberryContext(info *SignalInfo, analysis *CoreAnalysis) {
     for _, thread := range analysis.Threads {
 	if !thread.IsCrashed {
 	    continue

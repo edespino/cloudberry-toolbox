@@ -75,7 +75,7 @@ func TestAnalyzeCoreFile(t *testing.T) {
 				// postgres --version output
 				"postgres (PostgreSQL) 14.2",
 				// postgres --gp-version output
-				"postgres (CloudBerry Database) 1.0.0",
+				"postgres (Cloudberry Database) 1.0.0",
 				// pg_config output
 				"--with-openssl --with-python",
 				// gdb output
@@ -93,7 +93,7 @@ _sigfault = {si_addr = 0x0}`,
 				CoreFile: corePath,
 				PostgresInfo: PostgresInfo{
 					Version:   "postgres (PostgreSQL) 14.2",
-					GPVersion: "postgres (CloudBerry Database) 1.0.0",
+					GPVersion: "postgres (Cloudberry Database) 1.0.0",
 				},
 				SignalInfo: SignalInfo{
 					SignalNumber: 11,

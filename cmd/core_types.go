@@ -11,7 +11,7 @@
 // limitations under the License.
 
 // File: cmd/core_types.go
-// Purpose: Provides type definitions used for core dump analysis in the CloudBerry Database project.
+// Purpose: Provides type definitions used for core dump analysis in the Cloudberry Database project.
 // Includes structures representing core file details, stack frames, threads, signals, shared libraries,
 // and other elements necessary for comprehensive analysis.
 

@@ -1,5 +1,5 @@
 // File: cmd/core_parser_info.go
-// Purpose: Provides utilities to extract and process PostgreSQL/CloudBerry process information
+// Purpose: Provides utilities to extract and process PostgreSQL/Cloudberry process information
 // from core dumps and GDB output. Includes methods for parsing basic information, enhancing
 // process context, and generating human-readable descriptions of the crash environment.
 // Dependencies: Relies on Go's standard libraries for string manipulation, regex operations, and time handling.
@@ -13,7 +13,7 @@ import (
     "time"
 )
 
-// processTypes maps CloudBerry process types to descriptions.
+// processTypes maps Cloudberry process types to descriptions.
 var processTypes = map[string]string{
     "coredw":    "Coordinator Write Process",
     "corerd":    "Coordinator Read Process",
@@ -71,7 +71,7 @@ func parseBasicInfo(fileOutput string) map[string]string {
 
 // extractProcessInfo populates process information based on the command line.
 // Parameters:
-// - cmdline: The command-line string of the PostgreSQL/CloudBerry process.
+// - cmdline: The command-line string of the PostgreSQL/Cloudberry process.
 // - info: A map to store extracted process details.
 func extractProcessInfo(cmdline string, info map[string]string) {
     if strings.HasPrefix(cmdline, "postgres:") {

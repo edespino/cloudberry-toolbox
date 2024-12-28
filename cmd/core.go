@@ -12,7 +12,7 @@
 
 // File: cmd/core.go
 // Implements the `core` command for analyzing PostgreSQL core dumps.
-// Purpose: This file implements the core analysis functionality for PostgreSQL core dumps in Apache CloudBerry (Incubating).
+// Purpose: This file implements the core analysis functionality for PostgreSQL core dumps in Apache Cloudberry (Incubating).
 // It defines the `core` command, which analyzes core dumps to extract stack traces, thread information, signal details, and
 // shared library mappings. Additionally, it supports comparing multiple core files to identify common crash patterns.
 // Dependencies: Utilizes the Cobra library for CLI command handling and standard libraries for file management.
@@ -39,7 +39,7 @@ var (
 var coreCmd = &cobra.Command{
 	Use:   "core [core_file_or_directory]",
 	Short: "Analyze PostgreSQL core files",
-	Long: `Analyze PostgreSQL core files from Apache CloudBerry (Incubating).
+	Long: `Analyze PostgreSQL core files from Apache Cloudberry (Incubating).
 This tool provides detailed analysis of core dumps including stack traces,
 thread information, signal analysis, and shared library information.
 

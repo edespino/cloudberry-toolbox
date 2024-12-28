@@ -11,7 +11,7 @@
 // limitations under the License.
 
 // File: cmd/flags.go
-// Purpose: Defines shared command flags and their initialization logic for the CloudBerry Database CLI.
+// Purpose: Defines shared command flags and their initialization logic for the Cloudberry Database CLI.
 // Includes functionality to validate and set global flags such as output format (yaml/json).
 
 package cmd

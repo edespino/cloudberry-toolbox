@@ -13,7 +13,7 @@
 // File: cmd/core_parser_threads.go
 // Purpose: Provides utilities for parsing and analyzing thread information from GDB output.
 // Includes methods to extract thread details, enhance context, and summarize thread activities
-// in CloudBerry processes.
+// in Cloudberry processes.
 // Dependencies: Utilizes Go's standard libraries for regex, string manipulation, and formatting.
 
 package cmd
@@ -26,7 +26,7 @@ import (
     "strings"
 )
 
-// threadPatterns defines known PostgreSQL/CloudBerry thread patterns.
+// threadPatterns defines known PostgreSQL/Cloudberry thread patterns.
 var threadPatterns = map[string]string{
     `(?i)postmaster`:      "Postmaster",
     `(?i)bgwriter`:        "Background Writer",

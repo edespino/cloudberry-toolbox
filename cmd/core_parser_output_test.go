@@ -45,7 +45,7 @@ func TestSaveAnalysis(t *testing.T) {
 		},
 		PostgresInfo: PostgresInfo{
 			Version:   "PostgreSQL 14.2",
-			GPVersion: "CloudBerry 1.0.0",
+			GPVersion: "Cloudberry 1.0.0",
 		},
 		SignalInfo: SignalInfo{
 			SignalName:   "SIGSEGV",

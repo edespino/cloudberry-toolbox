@@ -15,7 +15,7 @@
 // This file defines the `analyzeCoreFile` function, which integrates with GDB to extract
 // detailed information such as stack traces, threads, signal details, and shared library mappings.
 // The data is structured into the `CoreAnalysis` object for further processing.
-// Dependencies: Relies on external GDB commands and PostgreSQL/CloudBerry binaries.
+// Dependencies: Relies on external GDB commands and PostgreSQL/Cloudberry binaries.
 
 package cmd
 
@@ -31,7 +31,7 @@ import (
 // analyzeCoreFile performs a comprehensive analysis of a core dump file.
 // Parameters:
 // - corePath: Path to the core dump file.
-// - gphome: Path to the PostgreSQL/CloudBerry installation.
+// - gphome: Path to the PostgreSQL/Cloudberry installation.
 // Returns:
 // - A `CoreAnalysis` object containing parsed details from the core dump.
 // - An error if the analysis fails at any step.
@@ -131,7 +131,7 @@ func getPostgresInfo(binaryPath string) (PostgresInfo, error) {
 		info.Version = strings.TrimSpace(string(output))
 	}
 
-	// Get CloudBerry version
+	// Get Cloudberry version
 	cmd = exec.Command(binaryPath, "--gp-version")
 	output, err = cmd.Output()
 	if err == nil {

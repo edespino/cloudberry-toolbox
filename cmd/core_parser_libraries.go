@@ -13,7 +13,7 @@
 // File: cmd/core_parser_libraries.go
 // Purpose: Provides utilities for parsing and analyzing shared library information
 // from GDB output. Includes categorization of libraries, extraction of version
-// information, and summary generation for shared libraries loaded in CloudBerry.
+// information, and summary generation for shared libraries loaded in Cloudberry.
 // Dependencies: Relies on Go's standard libraries for regex and string manipulation.
 
 package cmd
@@ -36,17 +36,17 @@ type LibraryCategory struct {
 var libraryCategories = []LibraryCategory{
     {
 	Type:        "Core",
-	Description: "CloudBerry Core Libraries",
+	Description: "Cloudberry Core Libraries",
 	Pattern:     `libpostgres\.so`,
     },
     {
 	Type:        "Extension",
-	Description: "CloudBerry Extensions",
+	Description: "Cloudberry Extensions",
 	Pattern:     `/postgresql/.*\.so`,
     },
     {
 	Type:        "Interconnect",
-	Description: "CloudBerry Interconnect",
+	Description: "Cloudberry Interconnect",
 	Pattern:     `interconnect\.so`,
     },
     {

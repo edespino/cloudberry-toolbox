@@ -43,7 +43,7 @@ func TestPrintGDBStyle(t *testing.T) {
 				},
 				PostgresInfo: PostgresInfo{
 					Version:   "PostgreSQL 14.2",
-					GPVersion: "CloudBerry 1.0.0",
+					GPVersion: "Cloudberry 1.0.0",
 				},
 				SignalInfo: SignalInfo{
 					SignalName:        "SIGSEGV",
@@ -68,10 +68,10 @@ func TestPrintGDBStyle(t *testing.T) {
 				},
 			},
 			wants: []string{
-				"CloudBerry Database Core Analysis",
+				"Cloudberry Database Core Analysis",
 				"Coordinator Write Process",
 				"PostgreSQL 14.2",
-				"CloudBerry 1.0.0",
+				"Cloudberry 1.0.0",
 				"SIGSEGV",
 				"Thread 1 [LWP 1234] (Query Executor) (Crashed)",
 				"#0  0x7fff1234 in raise",
@@ -269,7 +269,7 @@ func TestPrintLibrarySummary(t *testing.T) {
             },
             wants: []string{
                 "Shared Library Summary",
-                "CloudBerry Core:",
+                "Cloudberry Core:",
                 "libpostgres.so",
                 "Security Libraries:",
                 "libssl.so",

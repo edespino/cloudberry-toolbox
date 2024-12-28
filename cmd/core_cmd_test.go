@@ -44,7 +44,7 @@ func TestCoreCommand(t *testing.T) {
        Outputs: []string{
            "core file from 'postgres' (signal 11)",    // file command output
            "postgres (PostgreSQL) 14.2",               // postgres --version
-           "postgres (CloudBerry Database) 1.0.0",     // postgres --gp-version  
+           "postgres (Cloudberry Database) 1.0.0",     // postgres --gp-version  
            "--with-openssl --with-python",             // pg_config output
            `Thread 1 (LWP 1234):
 #0  0x00007f8b4c37c425 in raise () from /lib64/libc.so.6

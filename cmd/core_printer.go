@@ -57,7 +57,7 @@ func saveOrPrintAnalysis(analysis CoreAnalysis) error {
 // Returns:
 // - An error if printing fails, or nil on success.
 func printGDBStyle(analysis CoreAnalysis) error {
-    fmt.Println("CloudBerry Database Core Analysis")
+    fmt.Println("Cloudberry Database Core Analysis")
     fmt.Println("================================")
     if desc, ok := analysis.BasicInfo["description"]; ok {
         fmt.Printf("Process: %s\n", desc)
@@ -65,7 +65,7 @@ func printGDBStyle(analysis CoreAnalysis) error {
     fmt.Printf("Core: %s\n", analysis.CoreFile)
     fmt.Printf("Time: %s\n", analysis.Timestamp)
     fmt.Printf("PostgreSQL: %s\n", analysis.PostgresInfo.Version)
-    fmt.Printf("CloudBerry: %s\n", analysis.PostgresInfo.GPVersion)
+    fmt.Printf("Cloudberry: %s\n", analysis.PostgresInfo.GPVersion)
 
     fmt.Printf("\nSignal Configuration:\n")
     fmt.Printf("%-10s  Stop    Print   Pass    Description\n", "Signal")
@@ -170,14 +170,14 @@ func printRegistersEnhanced(registers map[string]string) {
 // Parameters:
 // - analysis: The CoreAnalysis object containing crash data.
 func printCrashHeader(analysis CoreAnalysis) {
-    fmt.Println("CloudBerry Database Core Dump Analysis")
+    fmt.Println("Cloudberry Database Core Dump Analysis")
     fmt.Println("======================================")
     fmt.Printf("Core file: %s\n", analysis.CoreFile)
     if t, err := time.Parse(time.RFC3339, analysis.Timestamp); err == nil {
         fmt.Printf("Time: %s\n", t.Format("Mon Jan 2 15:04:05 2006"))
     }
     fmt.Printf("PostgreSQL: %s\n", analysis.PostgresInfo.Version)
-    fmt.Printf("CloudBerry: %s\n", analysis.PostgresInfo.GPVersion)
+    fmt.Printf("Cloudberry: %s\n", analysis.PostgresInfo.GPVersion)
 }
 
 // printProcessInfo outputs process-level information from the analysis.
@@ -333,9 +333,9 @@ func printLibrarySummary(analysis CoreAnalysis) {
         typeGroups[lib.Type] = append(typeGroups[lib.Type], lib)
     }
     
-    // Print CloudBerry libraries first
-    printLibraryGroup("CloudBerry Core", typeGroups["Core"])
-    printLibraryGroup("CloudBerry Extensions", typeGroups["Extension"])
+    // Print Cloudberry libraries first
+    printLibraryGroup("Cloudberry Core", typeGroups["Core"])
+    printLibraryGroup("Cloudberry Extensions", typeGroups["Extension"])
     
     // Print other important groups
     printLibraryGroup("Security Libraries", typeGroups["Security"])
