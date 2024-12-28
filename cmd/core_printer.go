@@ -42,7 +42,13 @@ func saveOrPrintAnalysis(analysis CoreAnalysis) error {
     if gdbStyleOutput {
         return printGDBStyle(analysis)
     }
-    return nil
+
+    // Proceed to save analysis when --gdb-style is not set
+    err := saveAnalysis(analysis)
+    if err != nil {
+        fmt.Printf("[ERROR] Failed to save analysis: %v\n", err)
+    }
+    return err
 }
 
 // printGDBStyle outputs the analysis in a GDB-like format.
