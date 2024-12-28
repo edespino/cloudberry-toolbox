@@ -2,6 +2,7 @@
 package cmd
 
 import (
+  "fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,16 +18,21 @@ type MockCommander struct {
 }
 
 func (m *MockCommander) Execute(name string, args ...string) ([]byte, error) {
-	// Record the command
-	m.cmds = append(m.cmds, name+" "+strings.Join(args, " "))
-	
-	if m.index >= len(m.Outputs) {
-		return nil, m.Errors[m.index]
-	}
-	output := m.Outputs[m.index]
-	err := m.Errors[m.index]
-	m.index++
-	return []byte(output), err
+    // Record the command
+    m.cmds = append(m.cmds, name+" "+strings.Join(args, " "))
+
+    // Log the command being executed
+
+    // Check for out-of-bounds access
+    if m.index >= len(m.Outputs) || m.index >= len(m.Errors) {
+        return nil, fmt.Errorf("mock output index out of range: %d", m.index)
+    }
+
+    // Retrieve mock output and error
+    output := m.Outputs[m.index]
+    err := m.Errors[m.index]
+    m.index++
+    return []byte(output), err
 }
 
 func (m *MockCommander) GetCommands() []string {

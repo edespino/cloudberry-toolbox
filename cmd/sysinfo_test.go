@@ -325,6 +325,7 @@ func TestRunSysInfoValidFormats(t *testing.T) {
 
 // TestRootCommandExecution validates rootCmd execution and output.
 func TestRootCommandExecution(t *testing.T) {
+        rootCmd.SetArgs([]string{})
         var output string
         output = captureOutput(func() {
                 if err := rootCmd.Execute(); err != nil {

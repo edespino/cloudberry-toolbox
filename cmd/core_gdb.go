@@ -22,7 +22,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -53,8 +52,7 @@ func analyzeCoreFile(corePath string, gphome string) (CoreAnalysis, error) {
 	}
 
 	// Get file type information
-	cmd := exec.Command("file", corePath)
-	output, err := cmd.Output()
+	output, err := cmdExecutor.Execute("file", corePath)
 	if err != nil {
 		return analysis, fmt.Errorf("failed to get file info: %w", err)
 	}
@@ -125,23 +123,20 @@ func getPostgresInfo(binaryPath string) (PostgresInfo, error) {
 	}
 
 	// Get PostgreSQL version
-	cmd := exec.Command(binaryPath, "--version")
-	output, err := cmd.Output()
+	output, err := cmdExecutor.Execute(binaryPath, "--version")
 	if err == nil {
 		info.Version = strings.TrimSpace(string(output))
 	}
 
 	// Get Cloudberry version
-	cmd = exec.Command(binaryPath, "--gp-version")
-	output, err = cmd.Output()
+	output, err = cmdExecutor.Execute(binaryPath, "--gp-version")
 	if err == nil {
 		info.GPVersion = strings.TrimSpace(string(output))
 	}
 
 	// Get build options
 	pgConfigPath := filepath.Join(filepath.Dir(binaryPath), "pg_config")
-	cmd = exec.Command(pgConfigPath, "--configure")
-	output, err = cmd.Output()
+	output, err = cmdExecutor.Execute(pgConfigPath, "--configure")
 	if err == nil {
 		// Clean up the configure options
 		options := strings.Fields(strings.TrimSpace(string(output)))
@@ -207,8 +202,7 @@ func gdbAnalysis(analysis *CoreAnalysis, binaryPath string) error {
 	}
 	args = append(args, binaryPath, analysis.CoreFile)
 
-	cmd := exec.Command("gdb", args...)
-	output, err := cmd.CombinedOutput()
+  output, err := cmdExecutor.Execute("gdb", args...)
 	if err != nil {
 		return fmt.Errorf("GDB analysis failed: %w", err)
 	}

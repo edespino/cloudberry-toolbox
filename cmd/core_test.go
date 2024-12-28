@@ -274,21 +274,6 @@ func TestRunCoreAnalysis(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Set up mock commander
-	mockCommander := &MockCommander{
-		Outputs: []string{
-			"core file", // file command output
-			"PostgreSQL 14.2", // postgres --version
-			"Cloudberry 1.0.0", // postgres --gp-version
-			"--with-openssl", // pg_config output
-			"Thread 1", // gdb output
-		},
-		Errors: []error{nil, nil, nil, nil, nil},
-	}
-	oldCmdExecutor := cmdExecutor
-	SetCommander(mockCommander)
-	defer SetCommander(oldCmdExecutor)
-
 	// Create test core file
 	coreFile := filepath.Join(tmpDir, "core.12345")
 	if err := os.WriteFile(coreFile, []byte("test core file"), 0644); err != nil {
@@ -311,29 +296,57 @@ func TestRunCoreAnalysis(t *testing.T) {
 		path        string
 		compareFlag bool
 		expectError bool
+		mockOutputs []string
+		mockErrors  []error
 	}{
 		{
 			name:        "single core file",
 			path:        coreFile,
 			compareFlag: false,
 			expectError: false,
+			mockOutputs: []string{
+				"core file",         // file command output
+				"PostgreSQL 14.2",   // postgres --version
+				"Cloudberry 1.0.0",  // postgres --gp-version
+				"--with-openssl",    // pg_config output
+				"Thread 1",          // gdb output
+			},
+			mockErrors: []error{nil, nil, nil, nil, nil},
 		},
 		{
 			name:        "directory with core file",
 			path:        tmpDir,
 			compareFlag: true,
 			expectError: false,
+			mockOutputs: []string{
+				"core file",         // file command output
+				"PostgreSQL 14.2",   // postgres --version
+				"Cloudberry 1.0.0",  // postgres --gp-version
+				"--with-openssl",    // pg_config output
+				"Thread 1",          // gdb output
+			},
+			mockErrors: []error{nil, nil, nil, nil, nil},
 		},
 		{
 			name:        "non-existent path",
 			path:        "/nonexistent/path",
 			compareFlag: false,
 			expectError: true,
+			mockOutputs: nil,
+			mockErrors:  nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Initialize MockCommander for each test case
+			mockCommander := &MockCommander{
+				Outputs: tt.mockOutputs,
+				Errors:  tt.mockErrors,
+			}
+			SetCommander(mockCommander)
+			defer SetCommander(RealCommander{}) // Restore the real commander after the test
+
 			// Set compare flag
 			compareFlag = tt.compareFlag
 
@@ -362,3 +375,4 @@ func TestRunCoreAnalysis(t *testing.T) {
 		})
 	}
 }
+

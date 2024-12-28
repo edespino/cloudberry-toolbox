@@ -168,7 +168,8 @@ func findCoreFiles(path string) ([]string, error) {
 		"*.core",
 		"core",
 		"core-*",
-		"**/core-*-*-*-*-*",
+		"**/core.*",
+		"**/core-*",
 	}
 
 	for _, pattern := range patterns {
